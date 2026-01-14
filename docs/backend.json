@@ -1,0 +1,246 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the SchoolZenith system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user.",
+          "format": "uuid"
+        },
+        "username": {
+          "type": "string",
+          "description": "The username of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the user (e.g., admin, user, guest)."
+        }
+      },
+      "required": [
+        "id",
+        "username",
+        "email",
+        "role"
+      ]
+    },
+    "Resource": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Resource",
+      "type": "object",
+      "description": "Represents a reservable resource such as a room or object.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the resource.",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the resource."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the resource."
+        },
+        "capacity": {
+          "type": "number",
+          "description": "The capacity of the resource (e.g., number of seats)."
+        },
+        "location": {
+          "type": "string",
+          "description": "The location of the resource (e.g. building and room number)."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "capacity",
+        "location"
+      ]
+    },
+    "Reservation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Reservation",
+      "type": "object",
+      "description": "Represents a reservation of a resource by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the reservation.",
+          "format": "uuid"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who made the reservation. (Relationship: User 1:N Reservation)"
+        },
+        "resourceId": {
+          "type": "string",
+          "description": "Reference to the Resource being reserved. (Relationship: Resource 1:N Reservation)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "The start time of the reservation.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "The end time of the reservation.",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string",
+          "description": "Optional description or purpose of the reservation."
+        },
+        "status": {
+          "type": "string",
+          "description": "The status of the reservation (e.g., pending, confirmed, cancelled)."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "resourceId",
+        "startTime",
+        "endTime",
+        "status"
+      ]
+    },
+    "Waitlist": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Waitlist",
+      "type": "object",
+      "description": "Represents a waitlist entry for a fully reserved resource.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the waitlist entry.",
+          "format": "uuid"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User on the waitlist. (Relationship: User 1:N Waitlist)"
+        },
+        "resourceId": {
+          "type": "string",
+          "description": "Reference to the Resource that is fully reserved. (Relationship: Resource 1:N Waitlist)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "The desired start time for the reservation.",
+          "format": "date-time"
+        },
+        "endTime": {
+          "type": "string",
+          "description": "The desired end time for the reservation.",
+          "format": "date-time"
+        },
+        "requestTime": {
+          "type": "string",
+          "description": "The time the waitlist request was made.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "resourceId",
+        "startTime",
+        "endTime",
+        "requestTime"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles. The 'userId' parameter identifies the user. Path-based ownership ensures only the authenticated user can modify their own document.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/resources/{resourceId}",
+        "definition": {
+          "entityName": "Resource",
+          "schema": {
+            "$ref": "#/backend/entities/Resource"
+          },
+          "description": "Stores information about reservable resources. The 'resourceId' parameter identifies the resource.",
+          "params": [
+            {
+              "name": "resourceId",
+              "description": "The unique identifier of the resource."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/reservations/{reservationId}",
+        "definition": {
+          "entityName": "Reservation",
+          "schema": {
+            "$ref": "#/backend/entities/Reservation"
+          },
+          "description": "Stores reservations made by a specific user.  Path-based ownership enables simple security rules. The 'userId' identifies the user, and 'reservationId' identifies the reservation.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user making the reservation."
+            },
+            {
+              "name": "reservationId",
+              "description": "The unique identifier of the reservation."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/waitlists/{waitlistId}",
+        "definition": {
+          "entityName": "Waitlist",
+          "schema": {
+            "$ref": "#/backend/entities/Waitlist"
+          },
+          "description": "Stores waitlist entries for a specific user. Path-based ownership ensures only the authenticated user can modify their own waitlist entries.  The 'userId' identifies the user, and 'waitlistId' identifies the waitlist entry.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user on the waitlist."
+            },
+            {
+              "name": "waitlistId",
+              "description": "The unique identifier of the waitlist entry."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to ensure authorization independence, clarity, and scalability. It leverages denormalization to avoid hierarchical authorization dependencies and supports secure list operations (QAPs) through structural segregation.\n\nUsers are stored in a top-level collection `/users`.\nResources are stored in `/resources`. Reservations are stored in a subcollection under each user `/users/{userId}/reservations` to easily query reservations for a specific user and ensure path-based ownership. Waitlist entries are similarly stored under the user. This structure enables atomic operations and avoids `get()` calls in security rules.\n\nThis structure achieves authorization independence by storing reservation data within the user document, allowing for simpler security rules based solely on `request.auth.uid`. QAPs are supported because the structure allows listing operations within the user's reservations, without needing to traverse or filter based on external data. Additionally the database-centric access control model enables the system to adapt to changing permissions and roles without modifying code."
+  }
+}

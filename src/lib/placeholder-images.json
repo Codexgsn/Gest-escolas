@@ -1,0 +1,52 @@
+{
+  "placeholderImages": [
+    {
+      "id": "lecture-hall",
+      "description": "A modern lecture hall with tiered seating and a large projector screen.",
+      "imageUrl": "https://picsum.photos/seed/101/600/400",
+      "imageHint": "lecture hall"
+    },
+    {
+      "id": "chemistry-lab",
+      "description": "A fully equipped chemistry laboratory with workstations and fume hoods.",
+      "imageUrl": "https://picsum.photos/seed/102/600/400",
+      "imageHint": "science lab"
+    },
+    {
+      "id": "computer-lab",
+      "description": "A computer lab with rows of desktops available for students.",
+      "imageUrl": "https://picsum.photos/seed/103/600/400",
+      "imageHint": "computer lab"
+    },
+    {
+      "id": "library-study-room",
+      "description": "A quiet study room within the library, suitable for small groups.",
+      "imageUrl": "https://picsum.photos/seed/104/600/400",
+      "imageHint": "study room"
+    },
+    {
+      "id": "conference-room",
+      "description": "A professional conference room with a large table and video conferencing equipment.",
+      "imageUrl": "https://picsum.photos/seed/105/600/400",
+      "imageHint": "conference room"
+    },
+    {
+      "id": "art-studio",
+      "description": "A spacious art studio with easels, natural light, and creative supplies.",
+      "imageUrl": "https://picsum.photos/seed/106/600/400",
+      "imageHint": "art studio"
+    },
+     {
+      "id": "music-room",
+      "description": "A soundproofed music room with a piano and other instruments.",
+      "imageUrl": "https://picsum.photos/seed/107/600/400",
+      "imageHint": "music room"
+    },
+    {
+      "id": "gymnasium",
+      "description": "A large gymnasium with a basketball court and bleachers.",
+      "imageUrl": "https://picsum.photos/seed/108/600/400",
+      "imageHint": "basketball court"
+    }
+  ]
+}
