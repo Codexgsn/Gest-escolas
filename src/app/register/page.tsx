@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -15,8 +14,12 @@ import { BookOpenCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { createUserAction } from '@/app/actions/users';
 import Link from 'next/link';
+
+// Import Firebase auth and database functions
+import { auth, database } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { ref, set } from 'firebase/database';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -38,36 +41,60 @@ export default function RegisterPage() {
       return;
     }
     
-    if (password.length < 8) {
+    if (password.length < 6) { // Firebase default minimum is 6
         toast({
             variant: "destructive",
             title: "Senha muito curta",
-            description: "A senha deve ter pelo menos 8 caracteres.",
+            description: "A senha deve ter pelo menos 6 caracteres.",
         });
         return;
     }
 
-    // In a real app, a default "User" role would be assigned.
-    // The admin ID for creating users is null because it's a public registration.
-    const result = await createUserAction({
-        name,
-        email,
-        password,
-        role: 'Usuário',
-        avatar: '' // Let the backend assign a default
-    }, null); // No admin is creating this user.
+    try {
+      // 1. Create user with Firebase Authentication
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
 
-    if (result.success) {
+      // 2. Save additional user information to the Realtime Database under the user's UID
+      await set(ref(database, 'users/' + user.uid), {
+        name: name,
+        email: email,
+        role: 'Usuário', // Default role for new sign-ups
+        createdAt: new Date().toISOString()
+        // DO NOT SAVE THE PASSWORD IN THE DATABASE
+      });
+
       toast({
         title: "Cadastro Realizado com Sucesso!",
         description: "Você já pode fazer login com suas novas credenciais.",
       });
-      router.push('/');
-    } else {
+      router.push('/'); // Redirect to login page
+
+    } catch (error: any) {
+      console.error("Registration Error:", error.code, error.message);
+      
+      let title = "Falha no Cadastro";
+      let description = "Ocorreu um erro inesperado. Tente novamente.";
+
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          description = "Este endereço de e-mail já está sendo usado por outra conta.";
+          break;
+        case 'auth/invalid-email':
+          description = "O endereço de e-mail fornecido não é válido.";
+          break;
+        case 'auth/weak-password':
+          description = "A senha é muito fraca. Use pelo menos 6 caracteres.";
+          break;
+        case 'auth/network-request-failed':
+          description = "Erro de rede. Verifique sua conexão e tente novamente.";
+          break;
+      }
+
       toast({
         variant: "destructive",
-        title: "Falha no Cadastro",
-        description: result.message,
+        title: title,
+        description: description,
       });
     }
   };
@@ -113,7 +140,7 @@ export default function RegisterPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Crie uma senha forte (mínimo 8 caracteres)"
+                placeholder="Crie uma senha forte (mínimo 6 caracteres)"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

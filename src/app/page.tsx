@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -15,17 +14,15 @@ import { BookOpenCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
 import Link from 'next/link';
 
-import { database } from "@/firebase";
-import { ref, query, orderByChild, equalTo, get } from "firebase/database";
-import type { User } from '@/lib/data';
+// Import the necessary Firebase auth functions and instance
+import { auth } from "@/firebase";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const auth = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -33,45 +30,44 @@ export default function LoginPage() {
     event.preventDefault();
 
     try {
-        const usersRef = ref(database, 'users');
-        const q = query(usersRef, orderByChild('email'), equalTo(email));
-        const snapshot = await get(q);
+      // Use Firebase Authentication to sign in
+      await signInWithEmailAndPassword(auth, email, password);
 
-        if (snapshot.exists()) {
-            const usersData = snapshot.val();
-            const userId = Object.keys(usersData)[0];
-            const user = usersData[userId];
+      toast({
+        title: "Login bem-sucedido!",
+        description: `Redirecionando para o painel...`,
+      });
+      router.push('/dashboard');
 
-            // In a real app, you'd compare a hashed password.
-            // For this project, we're comparing plain text.
-            if (user.password === password) {
-                auth.login(userId);
-                toast({
-                    title: "Login bem-sucedido!",
-                    description: `Bem-vindo de volta, ${user.name}.`,
-                });
-                router.push('/dashboard');
-            } else {
-                 toast({
-                    variant: "destructive",
-                    title: "Falha no Login",
-                    description: "Email ou senha incorretos.",
-                });
-            }
-        } else {
-             toast({
-                variant: "destructive",
-                title: "Falha no Login",
-                description: "Email ou senha incorretos.",
-            });
-        }
-    } catch (error) {
-        console.error("Login Error:", error);
-        toast({
-            variant: "destructive",
-            title: "Erro de Conexão",
-            description: "Não foi possível conectar ao banco de dados.",
-        });
+    } catch (error: any) {
+      console.error("Login Error:", error.code, error.message);
+      
+      let title = "Falha no Login";
+      let description = "Ocorreu um erro inesperado. Tente novamente.";
+
+      // Provide user-friendly error messages based on the error code
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-email':
+        case 'auth/invalid-credential':
+          description = "Email ou senha incorretos.";
+          break;
+        case 'auth/network-request-failed':
+          description = "Erro de rede. Verifique sua conexão e tente novamente.";
+          break;
+        case 'auth/too-many-requests':
+          description = "Acesso temporariamente bloqueado devido a muitas tentativas. Tente novamente mais tarde.";
+          break;
+        default:
+          break;
+      }
+
+      toast({
+        variant: "destructive",
+        title: title,
+        description: description,
+      });
     }
   };
 
