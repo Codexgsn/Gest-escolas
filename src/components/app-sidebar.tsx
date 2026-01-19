@@ -23,7 +23,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/firebase/provider";
+import { useAuth } from "@/hooks/useAuth"; // Corrigido para usar o hook centralizado
 
 const allMenuItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Painel", adminOnly: false },
@@ -36,17 +36,21 @@ const allMenuItems = [
 export default function AppSidebar() {
   const pathname = usePathname();
   const { state } = useSidebar();
-  const { currentUser, isUserLoading } = useAuth();
+  // CORREÇÃO: Usando os nomes corretos retornados pelo hook useAuth
+  const { user, loading } = useAuth(); 
 
-  // Filter menu items based on user role
+  // Filtra os itens do menu com base na role do usuário
   const menuItems = allMenuItems.filter(item => {
-    if (isUserLoading) {
-      // Don't render any items until auth state is loaded to prevent flicker
+    // Se ainda estiver carregando a autenticação, não renderiza nenhum item 
+    // para evitar "piscar" a tela.
+    if (loading) {
       return false;
     }
+    // Se o item for apenas para administradores, verifica a role do usuário.
     if (item.adminOnly) {
-      return currentUser?.role === 'Admin';
+      return user?.role === 'Admin';
     }
+    // Se não for admin-only, mostra para todos.
     return true;
   });
 
