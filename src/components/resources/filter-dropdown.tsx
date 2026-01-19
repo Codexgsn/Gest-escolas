@@ -1,5 +1,4 @@
-
-'use client'
+'use client';
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { 
@@ -18,24 +17,39 @@ import { useCallback } from 'react';
 
 interface FilterDropdownProps {
   availableTags: string[];
-  selectedTags: string[];
 }
 
-export function FilterDropdown({ availableTags, selectedTags }: FilterDropdownProps) {
+export function FilterDropdown({ availableTags = [] }: FilterDropdownProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const selectedTags = searchParams.get('tags')?.split(',') || [];
 
   const createQueryString = useCallback((params: Record<string, string | string[]>) => {
-    const newSearchParams = new URLSearchParams();
+    const newSearchParams = new URLSearchParams(searchParams.toString());
     Object.entries(params).forEach(([key, value]) => {
-      if (Array.isArray(value)) {
+      newSearchParams.delete(key);
+      if (Array.isArray(value) && value.length > 0) {
         value.forEach(v => newSearchParams.append(key, v));
-      } else {
+      } else if (typeof value === 'string' && value) {
         newSearchParams.set(key, value);
       }
     });
-    return newSearchParams.toString();
-  }, []);
+    // Preserve other query params
+    for (const [key, value] of Array.from(searchParams.entries())) {
+        if (!params.hasOwnProperty(key)) {
+            newSearchParams.set(key, value);
+        }
+    }
+    const finalParams = new URLSearchParams();
+    const tags = newSearchParams.getAll('tags');
+    if(tags.length > 0) {
+        finalParams.set('tags', tags.join(','));
+    }
+
+    return finalParams.toString();
+  }, [searchParams]);
+
 
   const handleTagFilterChange = (tag: string, checked: boolean) => {
     const newSelectedTags = checked
@@ -47,7 +61,9 @@ export function FilterDropdown({ availableTags, selectedTags }: FilterDropdownPr
   };
 
   const clearFilters = () => {
-      router.push(pathname);
+      const newSearchParams = new URLSearchParams(searchParams.toString());
+      newSearchParams.delete('tags');
+      router.push(`${pathname}?${newSearchParams.toString()}`);
   }
 
   return (
