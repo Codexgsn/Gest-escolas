@@ -1,146 +1,95 @@
 'use client';
 
-import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
-import type { FirebaseApp } from 'firebase/app';
-import type { Firestore } from 'firebase/firestore';
-import type { Auth, User } from 'firebase/auth';
-import { onAuthStateChanged } from 'firebase/auth';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { getAuth, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { getDatabase, ref, onValue, set } from 'firebase/database';
+import { app, auth, database } from './client';
+import { User } from '@/lib/definitions';
 
-// Import the stable, singleton Firebase instances directly.
-// This is the key to preventing re-initialization and infinite loops.
-import { firebaseApp, auth, firestore } from './client';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-
-// The provider no longer needs props for the instances.
-interface FirebaseProviderProps {
-  children: ReactNode;
-}
-
-// ... (interfaces for context state and hook results remain the same)
-
-interface UserAuthState {
-  user: User | null;
+interface FirebaseContextValue {
+  app: typeof app;
+  auth: typeof auth;
+  database: typeof database;
+  currentUser: User | null;
   isUserLoading: boolean;
-  userError: Error | null;
 }
 
-export interface FirebaseContextState {
-  areServicesAvailable: boolean;
-  firebaseApp: FirebaseApp | null;
-  firestore: Firestore | null;
-  auth: Auth | null;
-  user: User | null;
-  isUserLoading: boolean;
-  userError: Error | null;
-}
+const FirebaseContext = createContext<FirebaseContextValue | null>(null);
 
-export interface FirebaseServicesAndUser {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  user: User | null;
-  isUserLoading: boolean;
-  userError: Error | null;
-}
+export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
 
-export interface UserHookResult {
-  user: User | null;
-  isUserLoading: boolean;
-  userError: Error | null;
-}
-
-export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
-
-export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({ children }) => {
-  const [userAuthState, setUserAuthState] = useState<UserAuthState>({
-    user: null,
-    isUserLoading: true,
-    userError: null,
-  });
-
-  // useEffect now depends on the stable, imported `auth` instance.
-  // It will run once and subscribe to auth state changes.
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth, // Use the stable instance
-      (firebaseUser) => {
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
-      },
-      (error) => {
-        console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        setUserAuthState({ user: null, isUserLoading: false, userError: error });
+    const authInstance = getAuth(app);
+    const dbInstance = getDatabase(app);
+
+    const unsubscribe = onAuthStateChanged(authInstance, (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        const userRef = ref(dbInstance, 'users/' + firebaseUser.uid);
+        onValue(userRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const userData = snapshot.val();
+            setCurrentUser({
+              id: firebaseUser.uid,
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              name: userData.name || 'No Name',
+              role: userData.role || 'User',
+              avatarUrl: userData.avatarUrl || '/avatars/default.png',
+            });
+          } else {
+            // User not in DB, create them
+            const newUser: User = {
+                id: firebaseUser.uid,
+                uid: firebaseUser.uid,
+                email: firebaseUser.email!,
+                name: firebaseUser.displayName || 'New User',
+                role: 'User', // Default role
+                avatarUrl: '/avatars/default.png'
+            };
+            set(userRef, newUser).then(() => {
+                setCurrentUser(newUser);
+            });
+          }
+          setIsUserLoading(false);
+        }, (error) => {
+            console.error("Error fetching user data:", error);
+            setCurrentUser(null);
+            setIsUserLoading(false);
+        });
+      } else {
+        setCurrentUser(null);
+        setIsUserLoading(false);
       }
-    );
-    return () => unsubscribe(); // Cleanup subscription on unmount
-  }, []); // The dependency array is empty because `auth` is a stable import.
+    });
 
-  // useMemo also depends on the stable instances and the user auth state.
-  // It creates a stable context value that only changes when auth state changes.
-  const contextValue = useMemo((): FirebaseContextState => ({
-    areServicesAvailable: !!(firebaseApp && firestore && auth),
-    firebaseApp,
-    firestore,
+    return () => unsubscribe();
+  }, []);
+
+  const value: FirebaseContextValue = {
+    app,
     auth,
-    user: userAuthState.user,
-    isUserLoading: userAuthState.isUserLoading,
-    userError: userAuthState.userError,
-  }), [userAuthState]);
-
-  return (
-    <FirebaseContext.Provider value={contextValue}>
-      <FirebaseErrorListener />
-      {children}
-    </FirebaseContext.Provider>
-  );
-};
-
-// The rest of the hooks (useFirebase, useUser, etc.) remain the same.
-// They will now receive the stable context value and will not trigger infinite re-renders.
-
-export const useFirebase = (): FirebaseServicesAndUser => {
-  const context = useContext(FirebaseContext);
-
-  if (context === undefined) {
-    throw new Error('useFirebase must be used within a FirebaseProvider.');
-  }
-
-  return useMemo(() => {
-    if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
-      throw new Error('Firebase core services not available. Check FirebaseProvider setup.');
-    }
-
-    return {
-      firebaseApp: context.firebaseApp,
-      firestore: context.firestore,
-      auth: context.auth,
-      user: context.user,
-      isUserLoading: context.isUserLoading,
-      userError: context.userError,
-    };
-  }, [context]);
-};
-
-export const useAuth = (): Auth => {
-  const { auth } = useFirebase();
-  return auth;
-};
-
-export const useFirestore = (): Firestore => {
-  const { firestore } = useFirebase();
-  return firestore;
-};
-
-export const useFirebaseApp = (): FirebaseApp => {
-  const { firebaseApp } = useFirebase();
-  return firebaseApp;
-};
-
-export const useUser = (): UserHookResult => {
-  const { user, isUserLoading, userError } = useFirebase();
-  
-  return useMemo(() => ({
-    user,
+    database,
+    currentUser,
     isUserLoading,
-    userError
-  }), [user, isUserLoading, userError]);
+  };
+
+  return <FirebaseContext.Provider value={value}>{children}</FirebaseContext.Provider>;
+};
+
+export const useFirebase = () => {
+  const context = useContext(FirebaseContext);
+  if (!context) {
+    throw new Error('useFirebase must be used within a FirebaseProvider');
+  }
+  return context;
+};
+
+export const useAuth = () => {
+    const context = useContext(FirebaseContext);
+    if (context === undefined) {
+        throw new Error("useAuth must be used within a FirebaseProvider");
+    }
+    return { currentUser: context?.currentUser, isUserLoading: context?.isUserLoading ?? true };
 };

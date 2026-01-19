@@ -1,22 +1,13 @@
 
-import { initializeApp, getApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore"; // Correct import for Firestore
-import { getDatabase } from "firebase/database";
+import { initializeApp, getApp, getApps, FirebaseApp } from "firebase/app";
+import { getAuth, Auth } from "firebase/auth";
+import { getDatabase, Database } from "firebase/database";
 import { firebaseConfig } from "./config";
 
-// This function ensures a single instance of Firebase is used across the app.
-function createFirebaseApp() {
-    if (getApps().length > 0) {
-        return getApp();
-    }
-    return initializeApp(firebaseConfig);
-}
+// This function ensures that we initialize the app only once.
+const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-const firebaseApp = createFirebaseApp();
-const auth = getAuth(firebaseApp);
-const firestore = getFirestore(firebaseApp); // Use firestore
-const database = getDatabase(firebaseApp);
+const auth: Auth = getAuth(app);
+const database: Database = getDatabase(app);
 
-// Export the single, stable instances.
-export { firebaseApp, auth, firestore, database };
+export { app, auth, database };

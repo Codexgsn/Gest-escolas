@@ -7,6 +7,9 @@ import Link from 'next/link';
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
   SheetTrigger,
 } from '@/components/ui/sheet';
 import {
@@ -22,10 +25,10 @@ import { Input } from '@/components/ui/input';
 import { ThemeToggle } from './theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { SidebarTrigger } from './ui/sidebar';
-import { useAppUser } from '@/hooks/use-app-user'; // Correct hook for app user data
-import { useAuth as useFirebaseAuth } from '@/firebase/provider'; // Correct hook for auth instance
-import { signOut } from 'firebase/auth'; // Firebase signout function
+import { useAuth, useFirebase } from '@/firebase/provider';
+import { signOut } from 'firebase/auth';
 import { usePathname } from 'next/navigation';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 const allMenuItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Painel", adminOnly: false },
@@ -37,11 +40,11 @@ const allMenuItems = [
 
 function MobileNav() {
     const pathname = usePathname();
-    const { currentUser, isLoaded } = useAppUser(); // Use the new hook
+    const { currentUser, isUserLoading } = useAuth();
     const [open, setOpen] = useState(false);
 
     const menuItems = allMenuItems.filter(item => {
-        if (!isLoaded) return false;
+        if (isUserLoading) return false;
         if (item.adminOnly) return currentUser?.role === 'Admin';
         return true;
     });
@@ -51,10 +54,18 @@ function MobileNav() {
             <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="md:hidden">
                     <Menu className="h-5 w-5" />
-                    <span className="sr-only">Abrir Menu</span>
+                    <span className="sr-only">Abrir Menu Principal</span>
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[300px] sm:w-[300px] p-0">
+                <SheetHeader>
+                    <VisuallyHidden>
+                        <SheetTitle>Menu Principal</SheetTitle>
+                        <SheetDescription>
+                            Navegue pelas diferentes seções do painel administrativo.
+                        </SheetDescription>
+                    </VisuallyHidden>
+                </SheetHeader>
                  <div className="flex h-full flex-col">
                     <div className="flex items-center gap-2 p-3 border-b">
                          <BookOpenCheck className="w-8 h-8 text-primary" />
@@ -85,10 +96,11 @@ function MobileNav() {
 export default function Header() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
-  const { currentUser, isLoaded } = useAppUser(); // Use new hook for user data
-  const auth = useFirebaseAuth(); // Use hook from provider to get auth instance
+  const { currentUser, isUserLoading } = useAuth(); // Use new hook for user data
+  const { auth } = useFirebase(); // Use hook from provider to get auth instance
 
   const handleLogout = async () => {
+    if (!auth) return;
     await signOut(auth);
     router.push('/');
   };
@@ -133,8 +145,9 @@ export default function Header() {
                     className="overflow-hidden rounded-full flex-shrink-0"
                   >
                     <Avatar>
-                      <AvatarImage src={currentUser?.avatar} alt="Avatar" />
-                      {isLoaded && (
+                      {/* Assuming you might add an avatarUrl to your user profile */}
+                      {/* <AvatarImage src={currentUser?.avatarUrl} alt="Avatar" /> */}
+                      {!isUserLoading && (
                         <AvatarFallback>
                           {currentUser?.name?.charAt(0) ?? 'U'}
                         </AvatarFallback>
@@ -144,7 +157,7 @@ export default function Header() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>
-                    {isLoaded ? currentUser?.name ?? 'Minha Conta' : 'Carregando...'}
+                    {!isUserLoading ? currentUser?.name ?? 'Minha Conta' : 'Carregando...'}
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>

@@ -38,15 +38,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Resource } from "@/lib/data";
+import type { Resource } from "@/lib/definitions";
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/firebase/provider";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { deleteResourceAction } from "@/app/actions/resources";
 import { Skeleton } from "@/components/ui/skeleton";
-import { database } from "@/firebase";
+import { database } from "@/firebase/client";
 import { ref, onValue } from "firebase/database";
 
 function ResourceRow({ resource, onDelete }: { resource: Resource, onDelete: (id: string) => void }) {
@@ -63,37 +63,42 @@ function ResourceRow({ resource, onDelete }: { resource: Resource, onDelete: (id
         {resource.capacity}
       </TableCell>
       <TableCell>
-        <AlertDialog>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button aria-haspopup="true" size="icon" variant="ghost">
-                <MoreHorizontal className="h-4 w-4" />
-                <span className="sr-only">Abrir menu</span>
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                <DropdownMenuItem asChild>
-                    <Link href={`/dashboard/settings/resources/edit/${resource.id}`}>Editar</Link>
-                </DropdownMenuItem>
-                <AlertDialogTrigger asChild>
-                    <DropdownMenuItem className="text-destructive">Excluir</DropdownMenuItem>
-                </AlertDialogTrigger>
-            </DropdownMenuContent>
-          </DropdownMenu>
-           <AlertDialogContent>
-              <AlertDialogHeader>
-              <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-              <AlertDialogDescription>
-                  Esta ação não pode ser desfeita. Isso excluirá permanentemente o recurso e suas reservas associadas.
-              </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => onDelete(resource.id)}>Excluir</AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+              <Button aria-haspopup="true" size="icon" variant="ghost">
+              <MoreHorizontal className="h-4 w-4" />
+              <span className="sr-only">Abrir menu</span>
+              </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Ações</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                  <Link href={`/dashboard/settings/resources/edit/${resource.id}`}>Editar</Link>
+              </DropdownMenuItem>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onSelect={(e) => e.preventDefault()} // Prevents DropdownMenu from closing
+                    >
+                      Excluir
+                    </DropdownMenuItem>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. Isso excluirá permanentemente o recurso e suas reservas associadas.
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => onDelete(resource.id)}>Excluir</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
     </TableRow>
   );
@@ -130,64 +135,66 @@ function ResourcesTableSkeleton() {
 }
 
 export default function ManageResourcesPage() {
-  const { currentUser, isLoaded } = useAuth();
+  const { currentUser, isUserLoading } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (isLoaded) {
-        if (!currentUser || currentUser.role !== 'Admin') {
-            toast({
-                variant: "destructive",
-                title: "Acesso Negado",
-                description: "Você não tem permissão para acessar esta página.",
-            });
-            router.push('/dashboard');
-            return;
-        }
+    if (isUserLoading) return; // Wait for user to be loaded
 
-        const resourcesRef = ref(database, 'resources');
-        const unsubscribe = onValue(resourcesRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                const list = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-                setResources(list);
-            } else {
-                setResources([]);
-            }
-            setIsLoading(false);
-        }, (error) => {
-            toast({ variant: "destructive", title: "Erro de Conexão", description: "Não foi possível buscar a lista de recursos." });
-            setIsLoading(false);
+    if (!currentUser || currentUser.role !== 'Admin') {
+        toast({
+            variant: "destructive",
+            title: "Acesso Negado",
+            description: "Você não tem permissão para acessar esta página.",
         });
-
-        return () => unsubscribe();
+        router.push('/dashboard');
+        return;
     }
-  }, [currentUser, isLoaded, router, toast]);
+
+    const resourcesRef = ref(database, 'resources');
+    const unsubscribe = onValue(resourcesRef, (snapshot) => {
+        const data = snapshot.val();
+        const list = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+        setResources(list);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Firebase Error:", error);
+        toast({ variant: "destructive", title: "Erro de Conexão", description: "Não foi possível buscar a lista de recursos." });
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+    
+  }, [currentUser, isUserLoading, router, toast]);
 
   const handleDeleteResource = async (resourceId: string) => {
     if (!currentUser) return;
     
-    const result = await deleteResourceAction(resourceId, currentUser.id);
+    // Optimistic UI update: remove from state immediately
+    setResources(prev => prev.filter(r => r.id !== resourceId));
+
+    const result = await deleteResourceAction(resourceId, currentUser.uid);
 
     if (result.success) {
         toast({
             title: "Recurso Excluído",
             description: result.message,
         })
-        // Data will be updated automatically by the onValue listener
     } else {
         toast({
-            title: "Erro",
+            title: "Erro ao Excluir",
             description: result.message,
             variant: 'destructive'
         })
+        // Revert optimistic update if deletion fails
+        // (This would require fetching the item back, for now we rely on the listener to refresh)
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isUserLoading) {
     return (
         <div className="space-y-4">
              <div className="flex items-center justify-between mb-4">
@@ -223,7 +230,7 @@ export default function ManageResourcesPage() {
         </Breadcrumb>
         <div className="ml-auto flex items-center gap-2">
             <Button asChild size="sm" className="h-8 gap-1">
-              <Link href="/dashboard/resources/new">
+              <Link href="/dashboard/settings/resources/new"> {/* Corrected Link */}
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                   Adicionar Recurso

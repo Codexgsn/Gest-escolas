@@ -23,7 +23,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { useAppUser } from "@/hooks/use-app-user";
+import { useAuth } from "@/firebase/provider";
 
 const allMenuItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Painel", adminOnly: false },
@@ -36,11 +36,11 @@ const allMenuItems = [
 export default function AppSidebar() {
   const pathname = usePathname();
   const { state } = useSidebar();
-  const { currentUser, isLoaded } = useAppUser();
+  const { currentUser, isUserLoading } = useAuth();
 
   // Filter menu items based on user role
   const menuItems = allMenuItems.filter(item => {
-    if (!isLoaded) {
+    if (isUserLoading) {
       // Don't render any items until auth state is loaded to prevent flicker
       return false;
     }

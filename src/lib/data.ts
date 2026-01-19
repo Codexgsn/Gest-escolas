@@ -1,141 +1,204 @@
-import { db } from '@vercel/postgres';
+
+import { database } from '@/firebase/client';
+import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 import { User, Resource, Reservation } from './definitions';
+import { unstable_noStore as noStore } from 'next/cache';
 
 // --- User Functions ---
-export async function fetchUsers() {
+
+export async function fetchUsers(): Promise<User[]> {
+  noStore();
   try {
-    const data = await db.sql<User>`SELECT * FROM users ORDER BY name ASC`;
-    return data.rows;
+    const usersRef = ref(database, 'users');
+    const snapshot = await get(usersRef);
+    if (!snapshot.exists()) {
+      return [];
+    }
+    const usersData = snapshot.val();
+    const usersList: User[] = Object.keys(usersData).map(key => ({
+      id: key,
+      ...usersData[key],
+    }));
+    return usersList;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch users.');
+    console.error('Firebase Database Error fetching users:', error);
+    throw new Error('Failed to fetch users from Firebase.');
   }
 }
 
-export async function fetchUserById(id: string) {
+export async function fetchUserById(id: string): Promise<User | null> {
+  noStore();
   try {
-    const data = await db.sql<User>`SELECT * FROM users WHERE id = ${id}`;
-    return data.rows[0];
+    const userRef = ref(database, `users/${id}`);
+    const snapshot = await get(userRef);
+    if (snapshot.exists()) {
+      return { id, ...snapshot.val() } as User;
+    }
+    return null;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch user.');
+    console.error('Firebase Database Error fetching user by ID:', error);
+    throw new Error('Failed to fetch user from Firebase.');
   }
 }
+
 
 // --- Resource Functions ---
-export async function fetchResources(tagFilter?: string[]) {
-  try {
-    let query = 'SELECT * FROM resources';
-    const queryParams = [];
 
-    if (tagFilter && tagFilter.length > 0) {
-        query += ' WHERE tags @> $1'; // Use @> for array containment
-        queryParams.push(tagFilter);
+export async function fetchResources(tagFilter?: string[]): Promise<Resource[]> {
+  noStore();
+  try {
+    const resourcesRef = ref(database, 'resources');
+    const snapshot = await get(resourcesRef);
+
+    if (!snapshot.exists()) {
+      return [];
     }
-    
-    query += ' ORDER BY name ASC';
 
-    const data = await db.query(query, queryParams);
-    return data.rows as Resource[];
+    const resourcesData = snapshot.val();
+    let resourcesList: Resource[] = Object.keys(resourcesData).map(key => ({
+      id: key,
+      ...resourcesData[key]
+    }));
+
+    // Sort alphabetically by name
+    resourcesList.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Apply tag filter if present
+    if (tagFilter && tagFilter.length > 0) {
+      resourcesList = resourcesList.filter(resource =>
+        tagFilter.every(filterTag => resource.tags?.includes(filterTag))
+      );
+    }
+
+    return resourcesList;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch resources.');
+    console.error('Firebase Database Error fetching resources:', error);
+    throw new Error('Failed to fetch resources from Firebase.');
   }
 }
 
-export async function fetchResourceById(id: string) {
+
+export async function fetchResourceById(id: string): Promise<Resource | null> {
+  noStore();
   try {
-    const data = await db.sql<Resource>`SELECT * FROM resources WHERE id = ${id}`;
-    return data.rows[0];
+    const resourceRef = ref(database, `resources/${id}`);
+    const snapshot = await get(resourceRef);
+    if (!snapshot.exists()) {
+      return null;
+    }
+    return { id, ...snapshot.val() } as Resource;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch resource.');
+    console.error('Firebase Database Error fetching resource by ID:', error);
+    throw new Error('Failed to fetch resource from Firebase.');
   }
 }
 
-export async function fetchResourceTags() {
+export async function fetchResourceTags(): Promise<string[]> {
+  noStore();
   try {
-    const data = await db.sql`SELECT DISTINCT unnest(tags) as tag FROM resources ORDER BY tag`;
-    return data.rows.map(row => row.tag as string);
+    const resourcesRef = ref(database, 'resources');
+    const snapshot = await get(resourcesRef);
+
+    if (!snapshot.exists()) {
+      return [];
+    }
+
+    const resourcesData = snapshot.val();
+    const allTags = new Set<string>();
+
+    Object.values(resourcesData).forEach((resource: any) => {
+      if (resource.tags && Array.isArray(resource.tags)) {
+        resource.tags.forEach((tag: string) => {
+          if (tag) allTags.add(tag);
+        });
+      }
+    });
+
+    return Array.from(allTags).sort();
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch resource tags.');
+    console.error('Firebase Database Error fetching tags:', error);
+    throw new Error('Failed to fetch resource tags from Firebase.');
   }
 }
+
 
 // --- Reservation Functions ---
+
 export async function fetchReservations(filters: {
   status?: string | string[];
   userId?: string;
-  showAll?: boolean;
-  currentUserId?: string;
-}) {
+}): Promise<Reservation[]> {
+  noStore();
   try {
-    let query = `
-      SELECT
-        r.id, r.resource_id AS "resourceId", r.user_id AS "userId",
-        r.start_time AS "startTime", r.end_time AS "endTime", r.status,
-        u.name AS "userName", u.email AS "userEmail", res.name AS "resourceName"
-      FROM reservations r
-      JOIN users u ON r.user_id = u.id
-      JOIN resources res ON r.resource_id = res.id
-    `;
+    const reservationsRef = ref(database, 'reservations');
+    const snapshot = await get(reservationsRef);
 
-    const whereClauses = [];
-    const queryParams = [];
-
-    if (filters.status) {
-      const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
-      if (statuses.length > 0) {
-        queryParams.push(statuses);
-        whereClauses.push(`r.status = ANY($${queryParams.length})`);
-      }
+    if (!snapshot.exists()) {
+      return [];
     }
 
-    if (filters.userId) {
-      queryParams.push(filters.userId);
-      whereClauses.push(`r.user_id = $${queryParams.length}`);
-    } else if (!filters.showAll) {
-        // Default to only showing the current user's reservations
-        queryParams.push(filters.currentUserId);
-        whereClauses.push(`r.user_id = $${queryParams.length}`);
-    }
-
-    if (whereClauses.length > 0) {
-      query += ' WHERE ' + whereClauses.join(' AND ');
-    }
-
-    query += ' ORDER BY r.start_time DESC';
-
-    const data = await db.query(query, queryParams);
-    const reservations = data.rows.map(row => ({
-      ...row,
-      startTime: new Date(row.startTime),
-      endTime: new Date(row.endTime),
+    const reservationsData = snapshot.val();
+    let reservations: Reservation[] = Object.keys(reservationsData).map(key => ({
+      id: key,
+      ...reservationsData[key],
     }));
+
+    // Apply filters
+    if (filters.userId) {
+      reservations = reservations.filter(r => r.userId === filters.userId);
+    }
+    if (filters.status) {
+        const statuses = Array.isArray(filters.status) ? filters.status : [filters.status];
+        if (statuses.length > 0) {
+            reservations = reservations.filter(r => statuses.includes(r.status));
+        }
+    }
     
-    return reservations as Reservation[];
+    // Sort by start date, most recent first
+    reservations.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+    return reservations;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch reservations.');
+    console.error('Firebase Database Error fetching reservations:', error);
+    throw new Error('Failed to fetch reservations from Firebase.');
   }
 }
 
-export async function fetchReservationById(id: string) {
+export async function fetchReservationById(id: string): Promise<Reservation | null> {
+  noStore();
   try {
-    const data = await db.sql<Reservation>`
-      SELECT r.id, r.resource_id AS "resourceId", r.user_id AS "userId", 
-             r.start_time AS "startTime", r.end_time AS "endTime", r.status
-      FROM reservations r
-      WHERE r.id = ${id}
-    `;
-    if (data.rows.length === 0) return null;
-    
-    const row = data.rows[0];
-    return { ...row, startTime: new Date(row.startTime), endTime: new Date(row.endTime) } as Reservation;
+    const reservationRef = ref(database, `reservations/${id}`);
+    const snapshot = await get(reservationRef);
 
+    if (!snapshot.exists()) {
+      return null;
+    }
+    return { id, ...snapshot.val() } as Reservation;
   } catch (error) {
-    console.error('Database Error:', error);
-    throw new Error('Failed to fetch reservation.');
+    console.error('Firebase Database Error fetching reservation by ID:', error);
+    throw new Error('Failed to fetch reservation from Firebase.');
+  }
+}
+
+export async function fetchReservationsByResourceId(resourceId: string): Promise<Reservation[]> {
+  noStore();
+  try {
+    const reservationsQuery = query(ref(database, 'reservations'), orderByChild('resourceId'), equalTo(resourceId));
+    const snapshot = await get(reservationsQuery);
+    
+    if (!snapshot.exists()) {
+        return [];
+    }
+
+    const reservationsData = snapshot.val();
+    const reservations: Reservation[] = Object.keys(reservationsData).map(key => ({
+        id: key,
+        ...reservationsData[key]
+    }));
+
+    return reservations;
+  } catch (error) {
+      console.error('Firebase Database Error fetching reservations by resource ID:', error);
+      throw new Error('Failed to fetch reservations for the resource.');
   }
 }
