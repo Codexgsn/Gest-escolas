@@ -20,10 +20,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
-  useSidebar,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"; // useSidebar removido daqui
+import { useLayoutStore } from "@/lib/store"; // Importação direta do store
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth"; // Corrigido para usar o hook centralizado
+import { useAuth } from "@/hooks/useAuth";
 
 const allMenuItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Painel", adminOnly: false },
@@ -35,22 +35,18 @@ const allMenuItems = [
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const { state } = useSidebar();
-  // CORREÇÃO: Usando os nomes corretos retornados pelo hook useAuth
-  const { user, loading } = useAuth(); 
+  // Correção: Usando o store diretamente para obter o estado do sidebar
+  const state = useLayoutStore((s) => s.getState());
+  // Correção: Usando os nomes corretos (currentUser, isUserLoading) retornados pelo hook useAuth
+  const { currentUser, isUserLoading } = useAuth();
 
-  // Filtra os itens do menu com base na role do usuário
   const menuItems = allMenuItems.filter(item => {
-    // Se ainda estiver carregando a autenticação, não renderiza nenhum item 
-    // para evitar "piscar" a tela.
-    if (loading) {
+    if (isUserLoading) {
       return false;
     }
-    // Se o item for apenas para administradores, verifica a role do usuário.
     if (item.adminOnly) {
-      return user?.role === 'Admin';
+      return currentUser?.role === 'Admin';
     }
-    // Se não for admin-only, mostra para todos.
     return true;
   });
 
