@@ -3,16 +3,14 @@
 
 import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
-import { VariantProps, cva } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
 import { PanelLeft } from 'lucide-react';
-import { create } from 'zustand';
 
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useLayoutStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
   TooltipContent,
@@ -20,126 +18,22 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 
-const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_WIDTH = '16rem';
-const SIDEBAR_WIDTH_MOBILE = '18rem';
 const SIDEBAR_WIDTH_ICON = '3.5rem';
-const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
 
-interface SidebarState {
-  isOpen: boolean;
-  isMobileOpen: boolean;
-  isMobile: boolean;
-  toggle: () => void;
-  setOpen: (open: boolean) => void;
-  setMobileOpen: (open: boolean) => void;
-  setIsMobile: (isMobile: boolean) => void;
-  getState: () => 'expanded' | 'collapsed';
-}
+// Hook simplificado, agora usando o store global diretamente
+export const useSidebar = useLayoutStore;
 
-export const useSidebarStore = create<SidebarState>((set, get) => ({
-  isOpen: true, 
-  isMobileOpen: false,
-  isMobile: false,
-  toggle: () => {
-    if (get().isMobile) {
-      set({ isMobileOpen: !get().isMobileOpen });
-    } else {
-      const newIsOpen = !get().isOpen;
-      set({ isOpen: newIsOpen });
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${newIsOpen}; path=/; max-age=${60 * 60 * 24 * 7}`;
-    }
-  },
-  setOpen: (open) => {
-    set({ isOpen: open });
-    document.cookie = `${SIDEBAR_COOKIE_NAME}=${open}; path=/; max-age=${60 * 60 * 24 * 7}`;
-  },
-  setMobileOpen: (open) => set({ isMobileOpen: open }),
-  setIsMobile: (isMobile) => set({ isMobile }),
-  getState: () => get().isOpen ? 'expanded' : 'collapsed',
-}));
-
-type SidebarContextValue = ReturnType<typeof useSidebarStore>;
-const SidebarContext = React.createContext<SidebarContextValue | null>(null);
-
-export function useSidebar() {
-  const context = React.useContext(SidebarContext);
-  if (!context) {
-    throw new Error('useSidebar must be used within a SidebarProvider.');
-  }
-  return context;
-}
-
-export const SidebarProvider: React.FC<React.PropsWithChildren<{}>> = ({ children }) => {
-  const store = useSidebarStore();
-  const isMobile = useIsMobile();
-  const [isMounted, setIsMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  React.useEffect(() => {
-    if (!isMounted || isMobile === null) return;
-
-    const currentIsMobile = store.getState().isMobile;
-
-    if (currentIsMobile !== isMobile) {
-        store.setIsMobile(isMobile);
-    }
-  }, [isMobile, isMounted, store]);
-
-  React.useEffect(() => {
-    if (isMounted) {
-      const cookieValue = document.cookie
-        .split('; ')
-        .find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`))
-        ?.split('=')[1];
-      if (cookieValue) {
-        store.setOpen(cookieValue === 'true');
-      }
-    }
-  }, [store, isMounted]);
-
-  React.useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        store.toggle();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [store]);
-
-  if (isMobile === null) return null;
-
-  return (
-    <SidebarContext.Provider value={store}>
-        <TooltipProvider delayDuration={0}>
-          <div
-            style={{
-                '--sidebar-width': SIDEBAR_WIDTH,
-                '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
-            } as React.CSSProperties}
-            className="group/sidebar-wrapper"
-          >
-            {children}
-          </div>
-        </TooltipProvider>
-    </SidebarContext.Provider>
-  );
-};
+// SidebarProvider foi removido. A lógica de cookie e keyboard shortcut será movida.
 
 const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
   ({ className, children, ...props }, ref) => {
-    const { isMobile, getState } = useSidebarStore();
+    const { isMobile, getState } = useSidebar();
     const state = getState();
     const [isMounted, setIsMounted] = React.useState(false);
     React.useEffect(() => setIsMounted(true), []);
 
     if (!isMounted) {
-      // Render a static placeholder on the server and initial client render
       return (
           <div 
             ref={ref} 
@@ -152,19 +46,29 @@ const Sidebar = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
     if (isMobile) return null;
 
     return (
-      <div
-        ref={ref}
-        className={cn(
-          'hidden h-full text-sidebar-foreground z-40 md:flex md:flex-col',
-          state === 'collapsed' ? 'w-[--sidebar-width-icon]' : 'w-[--sidebar-width]',
-          'transition-all duration-200',
-          className
-        )}
-        data-state={state}
-        {...props}
-      >
-        {children}
-      </div>
+        <TooltipProvider delayDuration={0}>
+            <div
+                style={{
+                    '--sidebar-width': SIDEBAR_WIDTH,
+                    '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
+                } as React.CSSProperties}
+                className="group/sidebar-wrapper"
+            >
+                <div
+                    ref={ref}
+                    className={cn(
+                    'hidden h-full text-sidebar-foreground z-40 md:flex md:flex-col',
+                    state === 'collapsed' ? 'w-[--sidebar-width-icon]' : 'w-[--sidebar-width]',
+                    'transition-all duration-200',
+                    className
+                    )}
+                    data-state={state}
+                    {...props}
+                >
+                    {children}
+                </div>
+            </div>
+      </TooltipProvider>
     );
   }
 );
@@ -174,7 +78,7 @@ const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
 >(({ className, onClick, ...props }, ref) => {
-  const toggle = useSidebarStore((s) => s.toggle);
+  const toggle = useSidebar((s) => s.toggle);
 
   return (
     <Button
@@ -197,7 +101,7 @@ const SidebarTrigger = React.forwardRef<
 SidebarTrigger.displayName = 'SidebarTrigger';
 
 const SidebarHeader = React.forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(({ className, ...props }, ref) => {
-    const { getState } = useSidebarStore();
+    const { getState } = useSidebar();
     const state = getState();
     return (
         <div
@@ -218,7 +122,7 @@ const SidebarMenuButton = React.forwardRef<
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   }
 >(({ as: Comp = 'button', isActive = false, tooltip, className, children, ...props }, ref) => {
-  const { isMobile, getState } = useSidebarStore();
+  const { isMobile, getState } = useSidebar();
   const state = getState();
 
   const button = (
@@ -259,8 +163,11 @@ const SidebarMenuButton = React.forwardRef<
 });
 SidebarMenuButton.displayName = 'SidebarMenuButton';
 
+// ... (todos os outros componentes do sidebar permanecem os mesmos)
+
+
 const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<'button'>>(({ className, ...props }, ref) => {
-    const { toggle } = useSidebarStore();
+    const { toggle } = useSidebar();
     return <button ref={ref} onClick={toggle} className={cn("group-data-[collapsible=offcanvas]:-left-2", className)} {...props} />
 })
 SidebarRail.displayName = 'SidebarRail';
@@ -315,6 +222,7 @@ SidebarMenuSubItem.displayName = 'SidebarMenuSubItem';
 
 const SidebarMenuSubButton = React.forwardRef<HTMLAnchorElement, React.ComponentProps<'a'>>((props, ref) => <a ref={ref} {...props} />);
 SidebarMenuSubButton.displayName = 'SidebarMenuSubButton';
+
 
 export {
   Sidebar,
