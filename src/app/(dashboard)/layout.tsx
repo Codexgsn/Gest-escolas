@@ -1,10 +1,13 @@
+
 'use client';
 
 import { useAppUser } from '@/hooks/use-app-user';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import AppSidebar from '@/components/app-sidebar';
-import Header from '@/components/header';
+import dynamic from 'next/dynamic';
+
+const AppSidebar = dynamic(() => import('@/components/app-sidebar'), { ssr: false });
+const Header = dynamic(() => import('@/components/header'), { ssr: false });
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
