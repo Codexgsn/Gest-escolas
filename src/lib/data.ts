@@ -1,14 +1,12 @@
 
-import { database } from '@/firebase/client';
+import { auth, database } from '@/firebase/client';
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
 export type { User, Resource, Reservation } from './definitions';
 import { User, Resource, Reservation } from './definitions';
-import { unstable_noStore as noStore } from 'next/cache';
 
 // --- User Functions ---
 
 export async function fetchUsers(): Promise<User[]> {
-  noStore();
   try {
     const usersRef = ref(database, 'users');
     const snapshot = await get(usersRef);
@@ -28,7 +26,6 @@ export async function fetchUsers(): Promise<User[]> {
 }
 
 export async function fetchUserById(id: string): Promise<User | null> {
-  noStore();
   try {
     const userRef = ref(database, `users/${id}`);
     const snapshot = await get(userRef);
@@ -46,7 +43,6 @@ export async function fetchUserById(id: string): Promise<User | null> {
 // --- Resource Functions ---
 
 export async function fetchResources(tagFilter?: string[]): Promise<Resource[]> {
-  noStore();
   try {
     const resourcesRef = ref(database, 'resources');
     const snapshot = await get(resourcesRef);
@@ -80,7 +76,6 @@ export async function fetchResources(tagFilter?: string[]): Promise<Resource[]> 
 
 
 export async function fetchResourceById(id: string): Promise<Resource | null> {
-  noStore();
   try {
     const resourceRef = ref(database, `resources/${id}`);
     const snapshot = await get(resourceRef);
@@ -95,7 +90,6 @@ export async function fetchResourceById(id: string): Promise<Resource | null> {
 }
 
 export async function fetchResourceTags(): Promise<string[]> {
-  noStore();
   try {
     const resourcesRef = ref(database, 'resources');
     const snapshot = await get(resourcesRef);
@@ -129,7 +123,6 @@ export async function fetchReservations(filters: {
   status?: string | string[];
   userId?: string;
 }): Promise<Reservation[]> {
-  noStore();
   try {
     const reservationsRef = ref(database, 'reservations');
     let dataQuery;
@@ -171,7 +164,6 @@ export async function fetchReservations(filters: {
 }
 
 export async function fetchReservationById(id: string): Promise<Reservation | null> {
-  noStore();
   try {
     const reservationRef = ref(database, `reservations/${id}`);
     const snapshot = await get(reservationRef);
@@ -187,7 +179,6 @@ export async function fetchReservationById(id: string): Promise<Reservation | nu
 }
 
 export async function fetchReservationsByResourceId(resourceId: string): Promise<Reservation[]> {
-  noStore();
   try {
     const reservationsQuery = query(ref(database, 'reservations'), orderByChild('resourceId'), equalTo(resourceId));
     const snapshot = await get(reservationsQuery);

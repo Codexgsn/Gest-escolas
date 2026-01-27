@@ -1,15 +1,14 @@
 'use client';
 
-import { fetchResources, fetchResourceTags } from "@/lib/data";
 import { FilterDropdown } from "@/components/resources/filter-dropdown";
 import { Resource } from "@/lib/definitions";
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { ResourcesTableSkeleton } from "@/components/resources/skeletons";
 import ResourceCard from "@/components/resources/resource-card";
 import { useSearchParams } from 'next/navigation';
+import { database } from "@/firebase";
+import { ref, onValue } from "firebase/database";
 
-// Componente "burro" para exibir a lista de recursos. 
-// Ele não busca dados, apenas os recebe via props.
 function ResourcesList({ resources }: { resources: Resource[] }) {
     if (resources.length === 0) {
         return (
@@ -28,40 +27,53 @@ function ResourcesList({ resources }: { resources: Resource[] }) {
     );
 }
 
-// Componente principal da página, agora responsável por toda a lógica de dados.
 function ResourcesPageContent() {
     const searchParams = useSearchParams();
-    const [allResources, setAllResources] = useState<Resource[]>([]);
-    const [availableTags, setAvailableTags] = useState<string[]>([]);
+    const [allResources, setAllResources] = useState<Resource[] | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Efeito para buscar todos os dados iniciais (recursos e tags) uma única vez.
     useEffect(() => {
-        async function loadInitialData() {
+        const resourcesRef = ref(database, 'resources');
+
+        console.log("Setting up resources listener...");
+
+        const unsubscribe = onValue(resourcesRef, (snapshot) => {
             try {
-                setLoading(true);
-                const [resourcesData, tagsData] = await Promise.all([
-                    fetchResources(),
-                    fetchResourceTags(),
-                ]);
-                setAllResources(resourcesData);
-                setAvailableTags(tagsData);
+                const data = snapshot.val();
+                const list = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+                console.log("Resources received:", list.length);
+                setAllResources(list);
+                setLoading(false);
             } catch (err) {
-                console.error("Failed to load resource data:", err);
-                setError("Falha ao carregar os recursos. Tente novamente mais tarde.");
-            } finally {
+                console.error("Error processing resources data:", err);
+                setError("Falha ao processar os recursos.");
                 setLoading(false);
             }
-        }
-        loadInitialData();
-    }, []); // Roda apenas uma vez na montagem do componente
+        }, (err) => {
+            console.error("Firebase subscription error:", err);
+            setError("Falha ao carregar os recursos. Verifique sua permissão.");
+            setLoading(false);
+        });
 
-    // Memoiza os recursos filtrados. A filtragem é refeita apenas se os recursos 
-    // ou os parâmetros de busca (tags) mudarem.
+        return () => unsubscribe();
+    }, []);
+
+    const availableTags = useMemo(() => {
+        if (!allResources) return [];
+        const tags = new Set<string>();
+        allResources.forEach(r => {
+            if (r.tags && Array.isArray(r.tags)) {
+                r.tags.forEach(t => tags.add(t));
+            }
+        });
+        return Array.from(tags).sort();
+    }, [allResources]);
+
     const filteredResources = useMemo(() => {
+        if (!allResources) return [];
         const selectedTags = searchParams.get('tags')?.split(',') || [];
-        if (selectedTags.length === 0) {
+        if (selectedTags.length === 0 || (selectedTags.length === 1 && selectedTags[0] === "")) {
             return allResources;
         }
         return allResources.filter(resource =>
@@ -69,7 +81,6 @@ function ResourcesPageContent() {
         );
     }, [allResources, searchParams]);
 
-    // Renderização condicional baseada nos estados de loading e erro.
     if (error) {
         return <div className="text-center text-destructive-foreground bg-destructive p-4 rounded-md">{error}</div>;
     }
@@ -91,7 +102,6 @@ function ResourcesPageContent() {
     );
 }
 
-// Componente de exportação padrão que envolve a página com o Suspense do Next.js
 export default function ResourcesPage() {
     return (
         <Suspense fallback={<ResourcesTableSkeleton />}>
