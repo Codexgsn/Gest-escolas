@@ -63,6 +63,7 @@ export default function AppSidebar() {
           <SidebarMenuItem key={item.href}>
             <SidebarMenuButton
               as={Link}
+              // @ts-ignore
               href={item.href}
               title={item.label}
               className={cn("w-full", {

@@ -21,14 +21,12 @@ export function ReservationsClientView() {
     useEffect(() => {
         async function loadData() {
             if (!authUser) {
-                // Still waiting for auth state or user is not logged in.
-                // If not loading and no user, we can stop.
                 if (!authLoading) setLoading(false);
                 return;
             }
 
             try {
-                const userDetails = await fetchUserById(authUser.uid);
+                const userDetails = await fetchUserById(authUser.id);
                 setCurrentUser(userDetails);
                 const isAdmin = userDetails?.role === 'Admin';
 
@@ -36,23 +34,21 @@ export function ReservationsClientView() {
                 const showAll = searchParams.get('showAll') === 'true';
                 const userIdParam = searchParams.get('userId');
 
+                const userId = (isAdmin && showAll) ? (userIdParam || undefined) : (userIdParam || authUser.id);
                 const filters = {
                     status: status,
-                    userId: (isAdmin && showAll) ? userIdParam : (userIdParam || authUser.uid),
-                    showAll: isAdmin && showAll,
-                    currentUserId: authUser.uid,
+                    userId: userId,
                 };
 
                 const [reservationsData, usersData] = await Promise.all([
                     fetchReservations(filters),
-                    isAdmin ? fetchUsers() : Promise.resolve([]), // Only fetch all users if admin
+                    isAdmin ? fetchUsers() : Promise.resolve([]),
                 ]);
 
                 setReservations(reservationsData);
                 setAllUsers(usersData);
             } catch (error) {
                 console.error("Failed to load reservation data:", error);
-                // Optionally, set an error state to show in the UI
             } finally {
                 setLoading(false);
             }
@@ -62,7 +58,7 @@ export function ReservationsClientView() {
     }, [authUser, authLoading, searchParams]);
 
     if (loading || authLoading) {
-        return <div>Carregando reservas...</div>; // Simple loading state
+        return <div>Carregando reservas...</div>;
     }
 
     const isAdmin = currentUser?.role === 'Admin';
@@ -75,7 +71,7 @@ export function ReservationsClientView() {
             />
             <ReservationsList 
                 reservations={reservations} 
-                currentUserId={authUser?.uid || null}
+                currentUserId={authUser?.id || null}
                 isAdmin={isAdmin}
             />
         </div>

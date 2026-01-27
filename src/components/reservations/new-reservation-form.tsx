@@ -100,7 +100,7 @@ export function NewReservationForm({ resources, settings, initialResourceId }: N
         return;
     }
 
-    const result = await createReservationAction(values, authUser.uid);
+    const result = await createReservationAction(values, authUser.id);
 
     if (result.success) {
       toast({ title: "Sucesso", description: result.message });

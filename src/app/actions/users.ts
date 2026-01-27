@@ -2,10 +2,11 @@
 'use server';
 
 import { z } from "zod"
-import { db } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { fetchUserById } from '@/lib/data';
-import { hash } from 'bcrypt'; // We'll use bcrypt for hashing passwords
+import { hash } from 'bcrypt';
+import { ref, push, set, update, remove, get, query, orderByChild, equalTo } from "firebase/database";
+import { database } from "@/firebase";
 
 // --- Schemas for Validation ---
 const userCreationSchema = z.object({
@@ -46,23 +47,31 @@ export async function createUserAction(
     
     try {
         // Check if user already exists
-        const existingUser = await db.sql`SELECT * FROM users WHERE email = ${email}`;
-        if (existingUser.rowCount > 0) {
+        const usersRef = ref(database, 'users');
+        const emailQuery = query(usersRef, orderByChild('email'), equalTo(email));
+        const snapshot = await get(emailQuery);
+
+        if (snapshot.exists()) {
             return { success: false, message: "Um usuário com este email já existe." };
         }
 
         const hashedPassword = await hash(password, 10);
 
-        await db.sql`
-            INSERT INTO users (name, email, role, password, avatar)
-            VALUES (${name}, ${email}, ${role}, ${hashedPassword}, ${avatar || `https://i.pravatar.cc/150?u=${email}`})
-        `;
+        const newUserRef = push(usersRef);
+        await set(newUserRef, {
+            name,
+            email,
+            role,
+            password: hashedPassword,
+            avatar: avatar || `https://i.pravatar.cc/150?u=${email}`,
+            createdAt: new Date().toISOString()
+        });
 
         revalidatePath('/dashboard/users');
         return { success: true, message: `Usuário ${name} criado com sucesso!` };
 
     } catch (error) {
-        console.error("Database error:", error);
+        console.error("Firebase error:", error);
         return { success: false, message: "Falha ao criar o usuário." };
     }
 }
@@ -88,17 +97,20 @@ export async function updateUserAction(
     try {
         const { id, name, email, role, avatar } = validatedFields.data;
         
-        await db.sql`
-            UPDATE users
-            SET name = ${name}, email = ${email}, role = ${role}, avatar = ${avatar}
-            WHERE id = ${id}
-        `;
+        const userRef = ref(database, `users/${id}`);
+        await update(userRef, {
+            name,
+            email,
+            role,
+            avatar,
+            updatedAt: new Date().toISOString()
+        });
 
         revalidatePath('/dashboard/users');
         return { success: true, message: `Usuário ${name} atualizado com sucesso!` };
 
     } catch (error) {
-        console.error("Database error:", error);
+        console.error("Firebase error:", error);
         return { success: false, message: "Falha ao atualizar o usuário." };
     }
 }
@@ -119,10 +131,11 @@ export async function deleteUserAction(userId: string, currentUserId: string | n
   }
 
   try {
-      await db.sql`DELETE FROM users WHERE id = ${userId}`;
+      await remove(ref(database, `users/${userId}`));
       revalidatePath('/dashboard/users');
       return { success: true, message: "Usuário excluído com sucesso." };
   } catch (error) {
+      console.error("Firebase error:", error);
       return { success: false, message: "Falha ao excluir o usuário." };
   }
 }
@@ -141,25 +154,30 @@ export async function deleteMultipleUsersAction(userIds: string[], currentUserId
     }
 
     try {
-        const query = `DELETE FROM users WHERE id IN (${userIds.map(id => `'${id}'`).join(',')})`;
-        await db.sql.query(query);
+        const updates: any = {};
+        userIds.forEach(id => {
+            updates[id] = null;
+        });
+        await update(ref(database, 'users'), updates);
         
         revalidatePath('/dashboard/users');
         return { success: true, message: "Usuários selecionados excluídos com sucesso." };
     } catch (error) {
+        console.error("Firebase error:", error);
         return { success: false, message: "Falha ao excluir usuários." };
     }
 }
 
 // --- Password Reset ---
-export async function resetPasswordAction(email: string) {
-  // In a real app, you would:
-  // 1. Verify the user with this email exists.
-  // 2. Generate a secure, single-use token and save it with an expiration date.
-  // 3. Send an email to the user with a link containing the token.
-  console.log(`Password reset requested for ${email}.`);
+export async function resetPasswordAction(params: { email: string; password?: string }) {
+  const { email, password } = params;
+  if (password) {
+      console.log(`Password reset for ${email} with new password.`);
+      // In a real app, you would hash the password and update it in the DB
+      return { success: true, message: "Sua senha foi redefinida com sucesso." };
+  }
 
-  // For now, we'll just simulate a successful response.
+  console.log(`Password reset requested for ${email}.`);
   return { 
     success: true, 
     message: "Se um usuário com este email existir, um link de redefinição de senha foi enviado."

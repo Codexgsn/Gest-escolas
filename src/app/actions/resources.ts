@@ -2,9 +2,10 @@
 'use server';
 
 import { z } from "zod"
-import { db } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { fetchUserById } from "@/lib/data";
+import { ref, push, set, update, remove, get, query, orderByChild, equalTo } from "firebase/database";
+import { database } from "@/firebase";
 
 const resourceSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
@@ -31,7 +32,6 @@ export async function createResourceAction(
 
   const validatedFields = resourceSchema.safeParse(values);
   if (!validatedFields.success) {
-    // A função flatten refina a apresentação dos erros.
     const errorMessages = validatedFields.error.flatten().fieldErrors;
     return { 
         success: false, 
@@ -44,14 +44,23 @@ export async function createResourceAction(
   const equipmentArray = equipment ? equipment.split(',').map(e => e.trim()) : [];
 
   try {
-    await db.sql`
-      INSERT INTO resources (name, type, location, capacity, equipment, imageUrl, tags, availability)
-      VALUES (${name}, ${type}, ${location}, ${capacity}, ${equipmentArray}, ${imageUrl}, ${tags}, 'Disponível')
-    `;
+    const resourcesRef = ref(database, 'resources');
+    const newResourceRef = push(resourcesRef);
+    await set(newResourceRef, {
+      name,
+      type,
+      location,
+      capacity,
+      equipment: equipmentArray,
+      imageUrl,
+      tags,
+      availability: 'Disponível'
+    });
+
     revalidatePath('/dashboard/resources');
     return { success: true, message: "Recurso criado com sucesso!" };
   } catch (error) {
-    console.error("Database Error:", error);
+    console.error("Firebase Error:", error);
     return { success: false, message: "Falha ao criar o recurso no banco de dados." };
   }
 }
@@ -87,22 +96,22 @@ export async function updateResourceAction(
   const equipmentArray = equipment ? equipment.split(',').map(e => e.trim()) : [];
 
   try {
-    await db.sql`
-        UPDATE resources
-        SET name = ${name}, 
-            type = ${type}, 
-            location = ${location}, 
-            capacity = ${capacity}, 
-            equipment = ${equipmentArray}, 
-            imageUrl = ${imageUrl}, 
-            tags = ${tags}
-        WHERE id = ${id}
-    `;
+    const resourceRef = ref(database, `resources/${id}`);
+    await update(resourceRef, {
+      name,
+      type,
+      location,
+      capacity,
+      equipment: equipmentArray,
+      imageUrl,
+      tags
+    });
+
     revalidatePath('/dashboard/resources');
-    revalidatePath(`/dashboard/resources/edit/${id}`); // Revalida a página de edição também
+    revalidatePath(`/dashboard/resources/edit/${id}`);
     return { success: true, message: "Recurso atualizado com sucesso!" };
   } catch (error) {
-    console.error("Database Error:", error);
+    console.error("Firebase Error:", error);
     return { success: false, message: "Falha ao atualizar o recurso no banco de dados." };
   }
 }
@@ -119,18 +128,28 @@ export async function deleteResourceAction(resourceId: string, currentUserId: st
   }
 
   try {
-    // Primeiro, exclui as reservas associadas ao recurso
-    await db.sql`DELETE FROM reservations WHERE resource_id = ${resourceId}`;
+    // 1. Excluir as reservas associadas ao recurso
+    const reservationsRef = ref(database, 'reservations');
+    const reservationsQuery = query(reservationsRef, orderByChild('resourceId'), equalTo(resourceId));
+    const snapshot = await get(reservationsQuery);
 
-    // Depois, exclui o recurso
-    await db.sql`DELETE FROM resources WHERE id = ${resourceId}`;
+    if (snapshot.exists()) {
+        const updates: any = {};
+        snapshot.forEach((childSnapshot) => {
+            updates[childSnapshot.key as string] = null;
+        });
+        await update(reservationsRef, updates);
+    }
+
+    // 2. Excluir o recurso
+    await remove(ref(database, `resources/${resourceId}`));
     
     revalidatePath('/dashboard/resources');
-    revalidatePath('/dashboard/reservations'); // Revalida a página de reservas também
+    revalidatePath('/dashboard/reservations');
 
     return { success: true, message: "Recurso e suas reservas associadas foram excluídos." };
   } catch (error) {
-    console.error("Database Error:", error);
+    console.error("Firebase Error:", error);
     return { success: false, message: "Falha ao excluir o recurso." };
   }
 }

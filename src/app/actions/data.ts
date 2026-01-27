@@ -3,7 +3,7 @@
 
 import { ref, get, child } from "firebase/database";
 import { database } from "@/firebase";
-import { type Resource, type User, type Reservation } from '@/lib/data';
+import { type Resource, type User, type Reservation } from '@/lib/definitions';
 
 // --- Resources ---
 export async function getResources(): Promise<Resource[]> {
@@ -24,7 +24,7 @@ export async function getResourceById(id: string): Promise<Resource | undefined>
     try {
         const snapshot = await get(child(ref(database), `resources/${id}`));
         if (snapshot.exists()) {
-            return { id: snapshot.key, ...snapshot.val() };
+            return { id: snapshot.key as string, ...snapshot.val() };
         }
         return undefined;
     } catch (error) {
@@ -58,7 +58,7 @@ export async function getUserById(id: string): Promise<User | undefined> {
         const snapshot = await get(child(ref(database), `users/${id}`));
         if (snapshot.exists()) {
              const { password, ...user } = snapshot.val();
-            return { id: snapshot.key, ...user };
+            return { id: snapshot.key as string, ...user };
         }
         return undefined;
     } catch (error) {
@@ -77,8 +77,6 @@ export async function getReservations(): Promise<Reservation[]> {
             return Object.keys(data).map(key => ({
                 id: key,
                 ...data[key],
-                startTime: new Date(data[key].startTime),
-                endTime: new Date(data[key].endTime),
             }));
         }
         return [];
@@ -94,10 +92,8 @@ export async function getReservationById(id: string): Promise<Reservation | unde
         if (snapshot.exists()) {
             const data = snapshot.val();
             return {
-                id: snapshot.key,
+                id: snapshot.key as string,
                 ...data,
-                startTime: new Date(data.startTime),
-                endTime: new Date(data.endTime),
             };
         }
         return undefined;

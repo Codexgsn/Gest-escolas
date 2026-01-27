@@ -1,6 +1,7 @@
 
 import { database } from '@/firebase/client';
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
+export type { User, Resource, Reservation } from './definitions';
 import { User, Resource, Reservation } from './definitions';
 import { unstable_noStore as noStore } from 'next/cache';
 
@@ -133,12 +134,9 @@ export async function fetchReservations(filters: {
     const reservationsRef = ref(database, 'reservations');
     let dataQuery;
 
-    // If a userId is provided, create a query to filter by it.
-    // This is much more efficient as it filters data at the database level.
     if (filters.userId) {
       dataQuery = query(reservationsRef, orderByChild('userId'), equalTo(filters.userId));
     } else {
-      // If no userId, fetch all reservations. This should typically be for admins.
       dataQuery = reservationsRef;
     }
     

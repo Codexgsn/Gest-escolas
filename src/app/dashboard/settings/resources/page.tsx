@@ -176,7 +176,7 @@ export default function ManageResourcesPage() {
     // Optimistic UI update: remove from state immediately
     setResources(prev => prev.filter(r => r.id !== resourceId));
 
-    const result = await deleteResourceAction(resourceId, currentUser.uid);
+    const result = await deleteResourceAction(resourceId, currentUser.uid || currentUser.id);
 
     if (result.success) {
         toast({

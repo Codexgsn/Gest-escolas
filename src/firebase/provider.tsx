@@ -35,8 +35,10 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
               name: userData.name || 'No Name',
-              role: userData.role || 'User',
+              role: userData.role === 'Admin' ? 'Admin' : 'Usuário',
               avatarUrl: userData.avatarUrl || '/avatars/default.png',
+              avatar: userData.avatar || userData.avatarUrl || '/avatars/default.png',
+              createdAt: userData.createdAt || new Date().toISOString(),
             });
           } else {
             // User not in DB, create them
@@ -44,9 +46,11 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
                 id: firebaseUser.uid,
                 uid: firebaseUser.uid,
                 email: firebaseUser.email!,
-                name: firebaseUser.displayName || 'New User',
-                role: 'User', // Default role
-                avatarUrl: '/avatars/default.png'
+                name: firebaseUser.displayName || 'Novo Usuário',
+                role: 'Usuário', // Default role
+                avatarUrl: '/avatars/default.png',
+                avatar: '/avatars/default.png',
+                createdAt: new Date().toISOString(),
             };
             set(userRef, newUser).then(() => {
                 setCurrentUser(newUser);

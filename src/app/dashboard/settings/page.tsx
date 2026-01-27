@@ -110,6 +110,7 @@ export default function SettingsPage() {
   
   const { fields: tagFields, append: appendTag, remove: removeTag } = useFieldArray({
     control: form.control,
+    // @ts-ignore
     name: "resourceTags",
   });
 
