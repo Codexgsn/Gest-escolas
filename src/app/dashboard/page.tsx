@@ -21,18 +21,19 @@ import {
   type User,
   type Resource,
   type Reservation
-} from "@/lib/data";
+} from "@/lib/definitions";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Line, LineChart, Pie, PieChart, Cell } from "recharts";
+import { Line, Cell, CartesianGrid, XAxis, YAxis, Bar, Pie, PieChart } from "recharts";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import React, { useEffect, useState, useMemo } from 'react';
 import { database } from "@/firebase";
 import { ref, onValue } from "firebase/database";
+import { useAuth } from "@/hooks/useAuth";
 
 const DynamicLineChart = dynamic(() => import('recharts').then(mod => mod.LineChart), {
   ssr: false,
@@ -60,8 +61,6 @@ function DashboardCharts({
   chartConfig: any,
   pieChartConfig: any
 }) {
-  const { CartesianGrid, XAxis, YAxis } = require('recharts');
-
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="lg:col-span-2">
@@ -106,7 +105,6 @@ function DashboardCharts({
 }
 
 function ResourceUsageChart({ data, config }: { data: any[], config: any }) {
-    const { Bar, CartesianGrid, XAxis, YAxis } = require('recharts');
     return (
         <ChartContainer config={config} className="w-full h-[300px]">
             <DynamicBarChart
@@ -129,48 +127,43 @@ function ResourceUsageChart({ data, config }: { data: any[], config: any }) {
 }
 
 export default function DashboardPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const { user, loading: authLoading } = useAuth();
+  const [users, setUsers] = useState<User[] | null>(null);
+  const [resources, setResources] = useState<Resource[] | null>(null);
+  const [reservations, setReservations] = useState<Reservation[] | null>(null);
   const [userMap, setUserMap] = useState<Map<string, User>>(new Map());
   const [resourceMap, setResourceMap] = useState<Map<string, Resource>>(new Map());
 
-  const isLoading = !users.length || !resources.length || !reservations.length;
+  const isLoading = authLoading || users === null || resources === null || reservations === null;
 
   useEffect(() => {
+    if (authLoading || !user) return;
+
     const usersRef = ref(database, 'users');
     const resourcesRef = ref(database, 'resources');
     const reservationsRef = ref(database, 'reservations');
 
     const unsubscribeUsers = onValue(usersRef, (snapshot) => {
         const data = snapshot.val();
-        if (data) {
-            const list: User[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            setUsers(list);
-            setUserMap(new Map(list.map(u => [u.id, u])));
-        }
+        const list: User[] = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+        setUsers(list);
+        setUserMap(new Map(list.map(u => [u.id, u])));
     });
 
     const unsubscribeResources = onValue(resourcesRef, (snapshot) => {
         const data = snapshot.val();
-        if (data) {
-            const list: Resource[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            setResources(list);
-            setResourceMap(new Map(list.map(r => [r.id, r])));
-        }
+        const list: Resource[] = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
+        setResources(list);
+        setResourceMap(new Map(list.map(r => [r.id, r])));
     });
 
     const unsubscribeReservations = onValue(reservationsRef, (snapshot) => {
         const data = snapshot.val();
-        if (data) {
-            const list: Reservation[] = Object.keys(data).map(key => ({
-                id: key,
-                ...data[key],
-                startTime: new Date(data[key].startTime),
-                endTime: new Date(data[key].endTime)
-            }));
-            setReservations(list);
-        }
+        const list: Reservation[] = data ? Object.keys(data).map(key => ({
+            id: key,
+            ...data[key]
+        })) : [];
+        setReservations(list);
     });
 
     return () => {
@@ -178,11 +171,11 @@ export default function DashboardPage() {
         unsubscribeResources();
         unsubscribeReservations();
     };
-  }, []);
+  }, [user, authLoading]);
 
 
  const dashboardData = useMemo(() => {
-    if (isLoading) {
+    if (isLoading || !users || !resources || !reservations) {
         return {
             activeReservations: 0,
             upcomingReservations: 0,
@@ -279,6 +272,30 @@ export default function DashboardPage() {
     return config;
   }, [resources]);
 
+
+  if (isLoading) {
+    return (
+        <div className="flex flex-col gap-8 animate-pulse">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                {[...Array(4)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader className="pb-2">
+                            <Skeleton className="h-4 w-24 mb-2" />
+                            <Skeleton className="h-10 w-16" />
+                        </CardHeader>
+                        <CardContent>
+                            <Skeleton className="h-3 w-32" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <Skeleton className="lg:col-span-2 h-[400px]" />
+                <Skeleton className="h-[400px]" />
+            </div>
+        </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
