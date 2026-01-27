@@ -1,11 +1,15 @@
 
 export type User = {
   id: string;
+  uid?: string;
   name: string;
   email: string;
   role: "Admin" | "Usuário";
-  avatar: string;
+  avatar?: string;
+  avatarUrl?: string;
   password?: string;
+  createdAt: string;
+  updatedAt?: string;
 };
 
 export type Resource = {
@@ -18,14 +22,19 @@ export type Resource = {
   availability: string;
   imageUrl: string;
   tags: string[];
+  description?: string;
 };
 
 export type Reservation = {
   id:string;
   resourceId: string;
   userId: string;
-  startTime: Date;
-  endTime: Date;
-  purpose: string;
+  startTime: string;
+  endTime: string;
+  purpose?: string;
   status: "Confirmada" | "Pendente" | "Cancelada";
+  createdAt: string;
+  updatedAt?: string;
+  resourceName?: string;
+  userName?: string;
 };

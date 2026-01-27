@@ -2,45 +2,51 @@
 'use server';
 
 import { z } from "zod";
-import { db } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { fetchUserById } from "@/lib/data";
+import { ref, push, set, update, get, query, orderByChild, equalTo } from "firebase/database";
+import { database } from "@/firebase";
 
-// Helper function to check for overlapping reservations using SQL
+// Helper function to check for overlapping reservations using Firebase
 async function hasConflict(resourceId: string, startTime: Date, endTime: Date, reservationId: string | null = null): Promise<boolean> {
-    let query = `
-        SELECT id FROM reservations
-        WHERE resource_id = $1
-          AND status = 'Confirmada'
-          -- Check for overlapping time ranges
-          AND (start_time, end_time) OVERLAPS ($2, $3)
-    `;
-    const params: (string | Date)[] = [resourceId, startTime, endTime];
-
-    // If checking for an update, exclude the reservation itself from the check
-    if (reservationId) {
-        query += ` AND id != $4`;
-        params.push(reservationId);
-    }
-
     try {
-        const { rows } = await db.query(query, params);
-        return rows.length > 0;
+        const reservationsRef = ref(database, 'reservations');
+        const reservationsQuery = query(reservationsRef, orderByChild('resourceId'), equalTo(resourceId));
+        const snapshot = await get(reservationsQuery);
+
+        if (!snapshot.exists()) return false;
+
+        const data = snapshot.val();
+        const reservationsList = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+
+        return reservationsList.some(r => {
+            if (r.id === reservationId) return false;
+            if (r.status !== 'Confirmada') return false;
+
+            const rStart = new Date(r.startTime);
+            const rEnd = new Date(r.endTime);
+
+            // Overlap check: (StartA < EndB) and (EndA > StartB)
+            return startTime < rEnd && endTime > rStart;
+        });
     } catch (error) {
-        console.error("SQL Error in hasConflict:", error);
-        // To be safe, prevent reservation if the check fails
-        return true; 
+        console.error("Firebase Error in hasConflict:", error);
+        return true; // Safe default
     }
 }
 
-const reservationSchema = z.object({
+const reservationBaseSchema = z.object({
   resourceId: z.string({ required_error: "Por favor, selecione um recurso." }),
   date: z.coerce.date({ required_error: "Por favor, selecione uma data." }),
   startTime: z.string({ required_error: "Por favor, selecione um horário de início." }),
   endTime: z.string({ required_error: "Por favor, selecione um horário de término." }),
-}).refine(data => data.endTime > data.startTime, {
+});
+
+const reservationSchema = reservationBaseSchema.refine(data => {
+    return data.endTime > data.startTime;
+}, {
     message: "O horário de término deve ser posterior ao horário de início.",
-    path: ["endTime"], // Path to the field that gets the error
+    path: ["endTime"],
 });
 
 export async function createReservationAction(values: unknown, currentUserId: string | null) {
@@ -68,20 +74,32 @@ export async function createReservationAction(values: unknown, currentUserId: st
   }
 
   try {
-    await db.sql`
-      INSERT INTO reservations (user_id, resource_id, start_time, end_time, status)
-      VALUES (${currentUserId}, ${resourceId}, ${startDateTime.toISOString()}, ${endDateTime.toISOString()}, 'Confirmada')
-    `;
+    const reservationsRef = ref(database, 'reservations');
+    const newReservationRef = push(reservationsRef);
+    await set(newReservationRef, {
+      userId: currentUserId,
+      resourceId,
+      startTime: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
+      status: 'Confirmada',
+      createdAt: new Date().toISOString()
+    });
+
     revalidatePath('/dashboard/reservations');
     return { success: true, message: "Reserva criada com sucesso!" };
   } catch (error) {
-    console.error("Database Error:", error);
+    console.error("Firebase Error:", error);
     return { success: false, message: "Falha ao criar a reserva no banco de dados." };
   }
 }
 
-const updateReservationSchema = reservationSchema.extend({
+const updateReservationSchema = reservationBaseSchema.extend({
     id: z.string(),
+}).refine(data => {
+    return data.endTime > data.startTime;
+}, {
+    message: "O horário de término deve ser posterior ao horário de início.",
+    path: ["endTime"],
 });
 
 export async function updateReservationAction(values: unknown, currentUserId: string | null) {
@@ -97,11 +115,15 @@ export async function updateReservationAction(values: unknown, currentUserId: st
     const { id, resourceId, date, startTime, endTime } = validatedFields.data;
 
     const user = await fetchUserById(currentUserId);
-    const reservationResult = await db.sql`SELECT user_id FROM reservations WHERE id = ${id}`;
-    if(reservationResult.rows.length === 0) {
+
+    const reservationRef = ref(database, `reservations/${id}`);
+    const snapshot = await get(reservationRef);
+
+    if(!snapshot.exists()) {
         return { success: false, message: "Reserva não encontrada." };
     }
-    const reservationOwnerId = reservationResult.rows[0].user_id;
+    const reservationData = snapshot.val();
+    const reservationOwnerId = reservationData.userId;
 
     if (!user || (user.id !== reservationOwnerId && user.role !== 'Admin')) {
         return { success: false, message: "Permissão negada para editar esta reserva." };
@@ -120,18 +142,17 @@ export async function updateReservationAction(values: unknown, currentUserId: st
     }
 
     try {
-        await db.sql`
-            UPDATE reservations
-            SET resource_id = ${resourceId}, 
-                start_time = ${startDateTime.toISOString()}, 
-                end_time = ${endDateTime.toISOString()}
-            WHERE id = ${id}
-        `;
+        await update(reservationRef, {
+            resourceId,
+            startTime: startDateTime.toISOString(),
+            endTime: endDateTime.toISOString(),
+            updatedAt: new Date().toISOString()
+        });
         revalidatePath('/dashboard/reservations');
         revalidatePath(`/dashboard/reservations/edit/${id}`);
         return { success: true, message: "Reserva atualizada com sucesso!" };
     } catch (error) {
-        console.error("Database Error:", error);
+        console.error("Firebase Error:", error);
         return { success: false, message: "Falha ao atualizar a reserva." };
     }
 }
@@ -142,22 +163,24 @@ export async function cancelReservationAction(reservationId: string, currentUser
     }
 
     const user = await fetchUserById(currentUserId);
-    const reservationResult = await db.sql`SELECT user_id FROM reservations WHERE id = ${reservationId}`;
-    if(reservationResult.rows.length === 0) {
+    const reservationRef = ref(database, `reservations/${reservationId}`);
+    const snapshot = await get(reservationRef);
+
+    if(!snapshot.exists()) {
        return { success: false, message: "Reserva não encontrada." };
     }
-    const reservation = reservationResult.rows[0];
+    const reservation = snapshot.val();
 
-    if (!user || (user.id !== reservation.user_id && user.role !== 'Admin')) {
+    if (!user || (user.id !== reservation.userId && user.role !== 'Admin')) {
         return { success: false, message: "Permissão negada para cancelar esta reserva." };
     }
 
     try {
-        await db.sql`UPDATE reservations SET status = 'Cancelada' WHERE id = ${reservationId}`;
+        await update(reservationRef, { status: 'Cancelada' });
         revalidatePath('/dashboard/reservations');
         return { success: true, message: "Reserva cancelada com sucesso." };
     } catch (error) {
-        console.error("Database Error:", error);
+        console.error("Firebase Error:", error);
         return { success: false, message: "Falha ao cancelar a reserva." };
     }
 }

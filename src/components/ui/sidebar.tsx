@@ -117,7 +117,7 @@ SidebarHeader.displayName = 'SidebarHeader';
 const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<'button'> & {
-    as?: React.ElementType;
+    as?: any;
     isActive?: boolean;
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   }

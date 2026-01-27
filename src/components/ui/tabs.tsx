@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use client"
 
 import * as React from "react"
@@ -57,7 +58,6 @@ const TabsList = React.forwardRef<
         if (React.isValidElement(child)) {
           // Clone the element to attach a ref and an onClick handler
           return React.cloneElement(child, {
-            // @ts-ignore
             ref: (el: HTMLButtonElement) => (tabsRef.current[index] = el),
             onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
               setActiveTab(child.props.value);

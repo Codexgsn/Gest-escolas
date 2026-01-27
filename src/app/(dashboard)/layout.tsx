@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useAppUser } from '@/hooks/use-app-user';
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
@@ -16,12 +16,12 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { currentUser, isLoaded } = useAppUser();
+  const { currentUser, loading: isLoaded } = useAuth();
   const router = useRouter();
   const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    if (!isLoaded) {
+    if (isLoaded) {
       return;
     }
 

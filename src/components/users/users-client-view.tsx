@@ -144,7 +144,7 @@ export function UsersClientView() {
 
             try {
                 const [userDetails, allUsersData] = await Promise.all([
-                    fetchUserById(authUser.uid),
+                    fetchUserById(authUser.id),
                     fetchUsers()
                 ]);
                 
@@ -232,8 +232,7 @@ export function UsersClientView() {
                 <TableRow>
                 <TableHead className="p-4">
                     <Checkbox
-                        checked={rowCount > 0 && numSelected === rowCount}
-                        indeterminate={numSelected > 0 && numSelected < rowCount}
+                        checked={rowCount > 0 && numSelected === rowCount ? true : (numSelected > 0 ? "indeterminate" : false)}
                         onCheckedChange={(value) => handleSelectAll(!!value)}
                         aria-label="Select all"
                     />

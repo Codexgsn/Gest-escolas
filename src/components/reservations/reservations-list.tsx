@@ -53,7 +53,7 @@ const statusVariant = (status: ReservationStatus) => {
 
 interface ReservationsListProps {
     reservations: Reservation[];
-    currentUserId: string;
+    currentUserId: string | null;
     isAdmin: boolean;
 }
 
