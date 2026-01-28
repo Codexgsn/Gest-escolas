@@ -1,23 +1,23 @@
 {
   "rules": {
+    "resources": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'"
+    },
+    "reservations": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "settings": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'"
+    },
     "users": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'",
       "$uid": {
         ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
         ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')"
       }
-    },
-    "resources": {
-      ".read": "true",
-      ".write": "auth.uid != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'"
-    },
-    "reservations": {
-      ".read": "true",
-      ".write": "auth.uid != null"
-    },
-    "settings": {
-      ".read": "true",
-      ".write": "auth.uid != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'"
     }
   }
 }

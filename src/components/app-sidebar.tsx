@@ -62,16 +62,14 @@ export default function AppSidebar() {
         {menuItems.map((item) => (
           <SidebarMenuItem key={item.href}>
             <SidebarMenuButton
-              as={Link}
-              // @ts-ignore
-              href={item.href}
-              title={item.label}
-              className={cn("w-full", {
-                "bg-sidebar-accent text-sidebar-accent-foreground": pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard'),
-              })}
+              asChild
+              isActive={pathname === item.href || (pathname.startsWith(item.href) && item.href !== '/dashboard')}
               tooltip={item.label}
             >
-              <item.icon className="h-5 w-5" />
+              <Link href={item.href}>
+                <item.icon className="h-5 w-5" />
+                <span className={cn(state === 'collapsed' && "sr-only")}>{item.label}</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         ))}

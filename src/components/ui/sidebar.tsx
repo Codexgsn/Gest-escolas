@@ -117,13 +117,14 @@ SidebarHeader.displayName = 'SidebarHeader';
 const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<'button'> & {
-    as?: any;
+    asChild?: boolean;
     isActive?: boolean;
     tooltip?: string | React.ComponentProps<typeof TooltipContent>;
   }
->(({ as: Comp = 'button', isActive = false, tooltip, className, children, ...props }, ref) => {
+>(({ asChild = false, isActive = false, tooltip, className, children, ...props }, ref) => {
   const { isMobile, getState } = useSidebar();
   const state = getState();
+  const Comp = asChild ? Slot : 'button';
 
   const button = (
     <Comp
@@ -139,7 +140,6 @@ const SidebarMenuButton = React.forwardRef<
       {...props}
     >
       {children}
-      <span className={cn('truncate', state === 'collapsed' && 'sr-only')}>{props.title}</span>
     </Comp>
   );
 

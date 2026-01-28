@@ -108,19 +108,19 @@ export default function SettingsPage() {
     name: 'breaks',
   });
   
-  const { fields: tagFields, append: appendTag, remove: removeTag } = useFieldArray({
-    control: form.control,
-    // @ts-ignore
-    name: "resourceTags",
-  });
+  const resourceTags = form.watch('resourceTags') || [];
 
   const handleAddTag = () => {
-    // @ts-ignore
-    if (newTag && !tagFields.some(field => field.value === newTag)) {
-       // @ts-ignore
-      appendTag(newTag);
+    if (newTag && !resourceTags.includes(newTag)) {
+      form.setValue('resourceTags', [...resourceTags, newTag]);
       setNewTag('');
     }
+  };
+
+  const handleRemoveTag = (index: number) => {
+    const updatedTags = [...resourceTags];
+    updatedTags.splice(index, 1);
+    form.setValue('resourceTags', updatedTags);
   };
 
 
@@ -438,20 +438,19 @@ export default function SettingsPage() {
                             </Button>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          {tagFields.map((field, index) => (
-                              <Badge key={field.id} variant="secondary" className="text-base py-1 pl-3 pr-1">
-                                  {/* @ts-ignore */}
-                                  {field.value || field}
+                          {resourceTags.map((tag, index) => (
+                              <Badge key={index} variant="secondary" className="text-base py-1 pl-3 pr-1">
+                                  {tag}
                                   <button 
                                       type="button" 
-                                      onClick={() => removeTag(index)} 
+                                      onClick={() => handleRemoveTag(index)}
                                       className="ml-2 rounded-full hover:bg-muted-foreground/20 p-0.5"
                                   >
                                       <X className="h-3 w-3" />
                                   </button>
                               </Badge>
                           ))}
-                          {tagFields.length === 0 && (
+                          {resourceTags.length === 0 && (
                             <p className="text-sm text-muted-foreground text-center py-4 w-full">Nenhuma tag definida.</p>
                           )}
                         </div>

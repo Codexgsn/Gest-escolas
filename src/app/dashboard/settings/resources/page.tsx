@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/table";
 import type { Resource } from "@/lib/definitions";
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/firebase/provider";
+import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";

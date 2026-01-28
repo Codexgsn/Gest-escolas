@@ -1,4 +1,3 @@
-// @ts-nocheck
 "use client"
 
 import * as React from "react"
@@ -13,18 +12,18 @@ const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
 >(({ className, children, ...props }, ref) => {
-  const [activeTab, setActiveTab] = React.useState(props.defaultValue || '');
+  const [activeTab, setActiveTab] = React.useState<string | undefined>((props as any).defaultValue || (props as any).value);
   const tabsRef = React.useRef<(HTMLButtonElement | null)[]>([]);
 
   // If the parent component controls the value, update the state
   React.useEffect(() => {
-    if (props.value !== undefined) {
-      setActiveTab(props.value);
+    if ((props as any).value !== undefined) {
+      setActiveTab((props as any).value);
     }
-  }, [props.value]);
+  }, [(props as any).value]);
 
   const activeTabIndex = React.Children.toArray(children).findIndex(
-    (child) => React.isValidElement(child) && child.props.value === activeTab
+    (child) => React.isValidElement(child) && (child.props as any).value === activeTab
   );
 
   return (
@@ -57,13 +56,13 @@ const TabsList = React.forwardRef<
        {React.Children.map(children, (child, index) => {
         if (React.isValidElement(child)) {
           // Clone the element to attach a ref and an onClick handler
-          return React.cloneElement(child, {
+          return React.cloneElement(child as React.ReactElement<any>, {
             ref: (el: HTMLButtonElement) => (tabsRef.current[index] = el),
             onClick: (e: React.MouseEvent<HTMLButtonElement>) => {
-              setActiveTab(child.props.value);
+              setActiveTab((child.props as any).value);
               // Call original onClick if it exists
-              if (child.props.onClick) {
-                child.props.onClick(e);
+              if ((child.props as any).onClick) {
+                (child.props as any).onClick(e);
               }
             }
           });

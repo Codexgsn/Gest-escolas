@@ -9,6 +9,8 @@ import { User, Resource, Reservation } from './definitions';
 export async function fetchUsers(): Promise<User[]> {
   try {
     const usersRef = ref(database, 'users');
+    const currentUser = auth.currentUser;
+    console.log(`FETCH_USERS: User: ${currentUser?.email || 'Guest'}, UID: ${currentUser?.uid || 'N/A'}`);
     const snapshot = await get(usersRef);
     if (!snapshot.exists()) {
       return [];
@@ -45,7 +47,8 @@ export async function fetchUserById(id: string): Promise<User | null> {
 export async function fetchResources(tagFilter?: string[]): Promise<Resource[]> {
   try {
     const resourcesRef = ref(database, 'resources');
-    console.log(`FETCH_RESOURCES: Auth UID: ${auth.currentUser?.uid || 'N/A'}`);
+    const currentUser = auth.currentUser;
+    console.log(`FETCH_RESOURCES: User: ${currentUser?.email || 'Guest'}, UID: ${currentUser?.uid || 'N/A'}, Auth State: ${currentUser ? 'Authenticated' : 'Not Authenticated'}`);
     const snapshot = await get(resourcesRef);
 
     if (!snapshot.exists()) {
@@ -79,7 +82,8 @@ export async function fetchResources(tagFilter?: string[]): Promise<Resource[]> 
 export async function fetchResourceById(id: string): Promise<Resource | null> {
   try {
     const resourceRef = ref(database, `resources/${id}`);
-    console.log(`FETCH_RESOURCE_BY_ID (${id}): Auth UID: ${auth.currentUser?.uid || 'N/A'}`);
+    const currentUser = auth.currentUser;
+    console.log(`FETCH_RESOURCE_BY_ID (${id}): User: ${currentUser?.email || 'Guest'}, UID: ${currentUser?.uid || 'N/A'}`);
     const snapshot = await get(resourceRef);
     if (!snapshot.exists()) {
       return null;
@@ -94,7 +98,8 @@ export async function fetchResourceById(id: string): Promise<Resource | null> {
 export async function fetchResourceTags(): Promise<string[]> {
   try {
     const resourcesRef = ref(database, 'resources');
-    console.log(`FETCH_RESOURCE_TAGS: Auth UID: ${auth.currentUser?.uid || 'N/A'}`);
+    const currentUser = auth.currentUser;
+    console.log(`FETCH_RESOURCE_TAGS: User: ${currentUser?.email || 'Guest'}, UID: ${currentUser?.uid || 'N/A'}, Auth State: ${currentUser ? 'Authenticated' : 'Not Authenticated'}`);
     const snapshot = await get(resourcesRef);
 
     if (!snapshot.exists()) {
