@@ -13,6 +13,10 @@
     "reservations": {
       ".read": "auth != null",
       ".write": "auth != null" // Or more restrictive rules
+    },
+    "settings": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'"
     }
   }
 }

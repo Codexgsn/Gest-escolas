@@ -27,6 +27,9 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(authInstance, (firebaseUser: FirebaseUser | null) => {
       if (firebaseUser) {
         const userRef = ref(dbInstance, 'users/' + firebaseUser.uid);
+
+        // Use get once initially to handle the "not in DB" case without a permanent listener if possible,
+        // or just be very careful with onValue.
         onValue(userRef, (snapshot) => {
           if (snapshot.exists()) {
             const userData = snapshot.val();
@@ -40,6 +43,7 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
               avatar: userData.avatar || userData.avatarUrl || '/avatars/default.png',
               createdAt: userData.createdAt || new Date().toISOString(),
             });
+            setIsUserLoading(false);
           } else {
             // User not in DB, create them
             const newUser: User = {
@@ -53,13 +57,16 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
                 createdAt: new Date().toISOString(),
             };
             set(userRef, newUser).then(() => {
-                setCurrentUser(newUser);
+                // The onValue listener will trigger again with the new data
+            }).catch(err => {
+                console.error("Error creating user:", err);
+                setIsUserLoading(false);
             });
           }
-          setIsUserLoading(false);
         }, (error) => {
             console.error("Error fetching user data:", error);
-            setCurrentUser(null);
+            // If it's a permission denied on the user's own record, it's weird,
+            // but we should still stop loading.
             setIsUserLoading(false);
         });
       } else {
