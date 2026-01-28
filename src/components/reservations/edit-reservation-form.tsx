@@ -39,9 +39,7 @@ import { Calendar as CalendarIcon } from "lucide-react"
 import type { Reservation, Resource } from "@/lib/definitions"
 import { updateReservationAction } from "@/app/actions/reservations"
 import type { SchoolSettings } from "@/app/actions/settings"
-
-// Dummy current user ID. Replace with your actual auth logic.
-const DUMMY_USER_ID = 'simulated-admin-id';
+import { useAuth } from "@/hooks/useAuth"
 
 const formSchema = z.object({
   resourceId: z.string().min(1, { message: "Por favor, selecione um recurso." }),
@@ -78,6 +76,7 @@ interface EditReservationFormProps {
 export function EditReservationForm({ reservation, resources, settings }: EditReservationFormProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -96,7 +95,7 @@ export function EditReservationForm({ reservation, resources, settings }: EditRe
         id: reservation.id, // Include the reservation ID for the update action
     };
 
-    const result = await updateReservationAction(submissionData, DUMMY_USER_ID);
+    const result = await updateReservationAction(submissionData, user?.id || null);
 
     if (result.success) {
       toast({ title: "Sucesso", description: result.message });

@@ -99,6 +99,8 @@ export async function fetchResourceTags(): Promise<string[]> {
     }
 
     const resourcesData = snapshot.val();
+    if (!resourcesData) return [];
+
     const allTags = new Set<string>();
 
     Object.values(resourcesData).forEach((resource: any) => {

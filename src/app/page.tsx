@@ -17,11 +17,9 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
 // Importações do Firebase, da autenticação e do novo guarda
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { firebaseApp } from "@/firebase"; 
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/firebase";
 import RedirectIfAuthenticated from '@/components/redirect-if-authenticated';
-
-const auth = getAuth(firebaseApp);
 
 // O conteúdo da página de login foi movido para este componente
 function LoginPageContent() {

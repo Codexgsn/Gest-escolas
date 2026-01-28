@@ -1,5 +1,8 @@
 
-import { notFound, redirect } from 'next/navigation';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { notFound, redirect, useParams } from 'next/navigation';
 import { fetchReservationById, fetchResources, fetchUserById } from "@/lib/data";
 import { getSettings } from "@/app/actions/settings";
 import { EditReservationForm } from "@/components/reservations/edit-reservation-form";
@@ -10,34 +13,71 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useAuth } from '@/hooks/useAuth';
+import { Reservation, Resource, User } from '@/lib/definitions';
+import { SchoolSettings } from '@/app/actions/settings';
 
-// Dummy current user ID. In a real app, this would come from your auth solution.
-const DUMMY_USER_ID = 'simulated-admin-id';
+export default function EditReservationPage() {
+  const params = useParams();
+  const id = params.id as string;
+  const { user: authUser, loading: authLoading } = useAuth();
 
-// This is the main page, a Server Component
-export default async function EditReservationPage({ params }: { params: { id: string } }) {
-  const id = params.id;
+  const [reservation, setReservation] = useState<Reservation | null>(null);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [settings, setSettings] = useState<SchoolSettings | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  // Fetch reservation, resources, settings, and current user in parallel
-  const [reservation, resources, settings, currentUser] = await Promise.all([
-    fetchReservationById(id),
-    fetchResources(),
-    getSettings(),
-    fetchUserById(DUMMY_USER_ID) // Fetch the current user's details
-  ]);
+  useEffect(() => {
+    async function loadData() {
+      if (authLoading) return;
+      if (!authUser) {
+          setLoading(false);
+          return;
+      }
 
-  // If no reservation is found, render the 404 page
-  if (!reservation) {
-    notFound();
+      try {
+        const [resData, resourcesData, settingsData, userData] = await Promise.all([
+          fetchReservationById(id),
+          fetchResources(),
+          getSettings(),
+          fetchUserById(authUser.id)
+        ]);
+
+        if (!resData) {
+          setError(true);
+        } else {
+          setReservation(resData);
+          setResources(resourcesData);
+          setSettings(settingsData);
+          setCurrentUser(userData);
+        }
+      } catch (err) {
+        console.error("Error loading reservation data:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [id, authUser, authLoading]);
+
+  if (authLoading || loading) {
+    return <div className="p-8 text-center">Carregando dados da reserva...</div>;
+  }
+
+  if (error || !reservation) {
+    return notFound();
   }
 
   // Check for permissions
-  const isOwner = reservation.userId === currentUser?.id;
+  const isOwner = reservation.userId === authUser?.id;
   const isAdmin = currentUser?.role === 'Admin';
 
   if (!isOwner && !isAdmin) {
-    // If the user is not the owner and not an admin, redirect them
-    redirect('/dashboard/reservations');
+    return redirect('/dashboard/reservations');
   }
 
   return (
@@ -49,12 +89,13 @@ export default async function EditReservationPage({ params }: { params: { id: st
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Pass the server-fetched data as props to the Client Component */}
-        <EditReservationForm 
-            reservation={reservation} 
-            resources={resources} 
-            settings={settings} 
-        />
+        {settings && (
+            <EditReservationForm
+                reservation={reservation}
+                resources={resources}
+                settings={settings}
+            />
+        )}
       </CardContent>
     </Card>
   );

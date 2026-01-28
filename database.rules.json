@@ -1,9 +1,10 @@
 {
   "rules": {
     "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'Admin'",
       "$uid": {
-        ".read": "$uid === auth.uid",
-        ".write": "$uid === auth.uid"
+        ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')",
+        ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'Admin')"
       }
     },
     "resources": {

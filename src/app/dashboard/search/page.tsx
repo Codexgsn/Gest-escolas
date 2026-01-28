@@ -13,12 +13,13 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { Resource } from '@/lib/data';
+import type { Resource } from '@/lib/definitions';
 import { Users, MapPin, Wrench, Package } from 'lucide-react';
 import { Suspense, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { database } from '@/firebase';
 import { ref, onValue } from 'firebase/database';
+import { useAuth } from '@/hooks/useAuth';
 
 
 function ResourceCard({ resource }: { resource: Resource }) {
@@ -104,11 +105,18 @@ function SearchResultsSkeleton() {
 function SearchResultsInternal() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
+  const { user, loading: authLoading } = useAuth();
   const [allResources, setAllResources] = useState<Resource[]>([]);
   const [filteredResources, setFilteredResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+        setIsLoading(false);
+        return;
+    }
+
     setIsLoading(true);
     const resourcesRef = ref(database, 'resources');
     const unsubscribe = onValue(resourcesRef, (snapshot) => {
@@ -120,9 +128,12 @@ function SearchResultsInternal() {
         setAllResources([]);
       }
       setIsLoading(false);
+    }, (error) => {
+        console.error("Firebase Search Error:", error);
+        setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (isLoading || !query) {
@@ -135,8 +146,8 @@ function SearchResultsInternal() {
         resource.name.toLowerCase().includes(searchTerm) ||
         resource.type.toLowerCase().includes(searchTerm) ||
         resource.location.toLowerCase().includes(searchTerm) ||
-        (Array.isArray(resource.equipment) && resource.equipment.some((e) => e.toLowerCase().includes(searchTerm))) ||
-        (Array.isArray(resource.tags) && resource.tags.some((t) => t.toLowerCase().includes(searchTerm)))
+        (resource.equipment && Array.isArray(resource.equipment) && resource.equipment.some((e) => e.toLowerCase().includes(searchTerm))) ||
+        (resource.tags && Array.isArray(resource.tags) && resource.tags.some((t) => t.toLowerCase().includes(searchTerm)))
     );
     setFilteredResources(results);
 

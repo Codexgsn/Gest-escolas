@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { updateUserAction } from "@/app/actions/users"
 import type { User } from "@/lib/definitions"
+import { useAuth } from "@/hooks/useAuth"
 
 import {
   Card,
@@ -45,8 +46,9 @@ const formSchema = z.object({
 export function EditUserForm({ user }: { user: User }) {
   const router = useRouter();
   const { toast } = useToast();
+  const { user: authUser } = useAuth();
   
-  const currentUserId = '00000000-0000-0000-0000-000000000000'; // Placeholder UUID
+  const currentUserId = authUser?.id || null;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

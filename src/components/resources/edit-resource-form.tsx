@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/hooks/useAuth"
 import { updateResourceAction } from "@/app/actions/resources"
 import type { Resource } from "@/lib/definitions"
 
@@ -42,7 +43,8 @@ interface EditResourceFormProps {
 export function EditResourceForm({ resource, availableTags }: EditResourceFormProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const currentUserId = '00000000-0000-0000-0000-000000000000'; // Placeholder UUID
+  const { user } = useAuth();
+  const currentUserId = user?.id || null;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

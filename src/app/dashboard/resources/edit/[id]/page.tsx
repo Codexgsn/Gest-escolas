@@ -1,5 +1,8 @@
 
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useState, useEffect } from 'react';
+import { notFound, useParams } from 'next/navigation';
 import { fetchResourceById, fetchResourceTags } from "@/lib/data";
 import { EditResourceForm } from "@/components/resources/edit-resource-form";
 import {
@@ -8,21 +11,57 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
+import { useAuth } from '@/hooks/useAuth';
+import { Resource } from '@/lib/definitions';
 
-// This is the main page component, a Server Component.
-export default async function EditResourcePage({ params }: { params: { id: string } }) {
-  const id = params.id;
+export default function EditResourcePage() {
+  const params = useParams();
+  const id = params.id as string;
+  const { user, loading: authLoading } = useAuth();
 
-  // Fetch the specific resource and all available tags in parallel.
-  const [resource, availableTags] = await Promise.all([
-    fetchResourceById(id),
-    fetchResourceTags(),
-  ]);
+  const [resource, setResource] = useState<Resource | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  // If the resource doesn't exist, show a 404 page.
-  if (!resource) {
-    notFound();
+  useEffect(() => {
+    async function loadData() {
+      if (authLoading) return;
+      if (!user) {
+          setLoading(false);
+          return;
+      }
+
+      try {
+        const [resourceData, tagsData] = await Promise.all([
+          fetchResourceById(id),
+          fetchResourceTags(),
+        ]);
+
+        if (!resourceData) {
+          setError(true);
+        } else {
+          setResource(resourceData);
+          setAvailableTags(tagsData);
+        }
+      } catch (err) {
+        console.error("Error loading resource data:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [id, user, authLoading]);
+
+  if (authLoading || loading) {
+    return <div className="p-8 text-center">Carregando dados do recurso...</div>;
+  }
+
+  if (error || !resource) {
+    return notFound();
   }
 
   return (
@@ -34,7 +73,6 @@ export default async function EditResourcePage({ params }: { params: { id: strin
             </CardDescription>
         </CardHeader>
         <CardContent>
-            {/* Pass server-fetched data to the client component */}
             <EditResourceForm resource={resource} availableTags={availableTags} />
         </CardContent>
     </Card>
