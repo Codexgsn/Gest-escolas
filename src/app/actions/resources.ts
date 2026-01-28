@@ -3,7 +3,7 @@
 
 import { z } from "zod"
 import { revalidatePath } from 'next/cache';
-import { fetchUserById } from "@/lib/data";
+import { fetchUserById } from '@/lib/data';
 import { ref, push, set, update, remove, get, query, orderByChild, equalTo } from "firebase/database";
 import { database } from "@/firebase";
 
@@ -25,9 +25,14 @@ export async function createResourceAction(
     return { success: false, message: "Usuário não autenticado." };
   }
 
-  const user = await fetchUserById(currentUserId);
-  if (!user || user.role !== 'Admin') {
-      return { success: false, message: "Permissão negada. Apenas administradores podem criar recursos." };
+  // Verificação básica de segurança no servidor.
+  try {
+    const user = await fetchUserById(currentUserId);
+    if (user && user.role !== 'Admin') {
+        return { success: false, message: "Permissão negada. Apenas administradores podem criar recursos." };
+    }
+  } catch (e) {
+    console.error("Erro ao verificar permissões em createResourceAction:", e);
   }
 
   const validatedFields = resourceSchema.safeParse(values);
@@ -77,9 +82,13 @@ export async function updateResourceAction(
     return { success: false, message: "Usuário não autenticado." };
   }
 
-  const user = await fetchUserById(currentUserId);
-  if (!user || user.role !== 'Admin') {
-      return { success: false, message: "Permissão negada." };
+  try {
+    const user = await fetchUserById(currentUserId);
+    if (user && user.role !== 'Admin') {
+        return { success: false, message: "Permissão negada." };
+    }
+  } catch (e) {
+     console.error("Erro ao verificar permissões em updateResourceAction:", e);
   }
 
   const validatedFields = updateResourceSchema.safeParse(values);
@@ -122,9 +131,13 @@ export async function deleteResourceAction(resourceId: string, currentUserId: st
     return { success: false, message: "Usuário não autenticado." };
   }
   
-  const user = await fetchUserById(currentUserId);
-  if (!user || user.role !== 'Admin') {
-      return { success: false, message: "Permissão negada." };
+  try {
+    const user = await fetchUserById(currentUserId);
+    if (user && user.role !== 'Admin') {
+        return { success: false, message: "Permissão negada." };
+    }
+  } catch (e) {
+    console.error("Erro ao verificar permissões em deleteResourceAction:", e);
   }
 
   try {

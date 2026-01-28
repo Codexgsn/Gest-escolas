@@ -50,6 +50,8 @@ const defaultSettings: SchoolSettings = {
 
 export async function getSettings(): Promise<SchoolSettings> {
   try {
+    // Nota: Chamada no servidor pode falhar se as regras do banco exigirem auth.
+    // Garantimos acesso de leitura nas regras para settings.
     const snapshot = await get(ref(database, 'settings'));
     if (snapshot.exists()) {
         // Ensure data matches schema, especially for arrays which might be missing in older DB states

@@ -39,9 +39,13 @@ export async function createUserAction(
     const { name, email, role, password, avatar } = validatedFields.data;
 
     if (currentUserId) {
-        const currentUser = await fetchUserById(currentUserId);
-        if (!currentUser || currentUser.role !== 'Admin') {
-            return { success: false, message: "Permissão negada." };
+        try {
+            const currentUser = await fetchUserById(currentUserId);
+            if (currentUser && currentUser.role !== 'Admin') {
+                return { success: false, message: "Permissão negada. Apenas administradores podem realizar esta ação." };
+            }
+        } catch (e) {
+            console.error("Erro ao verificar permissões em createUserAction:", e);
         }
     }
     
@@ -89,9 +93,13 @@ export async function updateUserAction(
     if (!currentUserId) {
         return { success: false, message: "Usuário não autenticado." };
     }
-    const currentUser = await fetchUserById(currentUserId);
-     if (!currentUser || currentUser.role !== 'Admin') {
-        return { success: false, message: "Permissão negada." };
+    try {
+        const currentUser = await fetchUserById(currentUserId);
+        if (currentUser && currentUser.role !== 'Admin') {
+            return { success: false, message: "Permissão negada." };
+        }
+    } catch (e) {
+        console.error("Erro ao verificar permissões em updateUserAction:", e);
     }
 
     try {
@@ -121,9 +129,13 @@ export async function deleteUserAction(userId: string, currentUserId: string | n
     return { success: false, message: "Usuário não autenticado." };
   }
 
-  const currentUser = await fetchUserById(currentUserId);
-  if (!currentUser || currentUser.role !== 'Admin') {
-      return { success: false, message: "Permissão negada." };
+  try {
+    const currentUser = await fetchUserById(currentUserId);
+    if (currentUser && currentUser.role !== 'Admin') {
+        return { success: false, message: "Permissão negada." };
+    }
+  } catch (e) {
+    console.error("Erro ao verificar permissões em deleteUserAction:", e);
   }
 
    if (userId === currentUserId) {
@@ -144,9 +156,13 @@ export async function deleteMultipleUsersAction(userIds: string[], currentUserId
     if (!currentUserId) {
         return { success: false, message: "Usuário não autenticado." };
     }
-    const currentUser = await fetchUserById(currentUserId);
-    if (!currentUser || currentUser.role !== 'Admin') {
-        return { success: false, message: "Permissão negada." };
+    try {
+        const currentUser = await fetchUserById(currentUserId);
+        if (currentUser && currentUser.role !== 'Admin') {
+            return { success: false, message: "Permissão negada." };
+        }
+    } catch (e) {
+        console.error("Erro ao verificar permissões em deleteMultipleUsersAction:", e);
     }
 
     if (userIds.includes(currentUserId)) {

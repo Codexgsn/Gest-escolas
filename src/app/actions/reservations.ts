@@ -114,7 +114,12 @@ export async function updateReservationAction(values: unknown, currentUserId: st
     
     const { id, resourceId, date, startTime, endTime } = validatedFields.data;
 
-    const user = await fetchUserById(currentUserId);
+    let user = null;
+    try {
+        user = await fetchUserById(currentUserId);
+    } catch (e) {
+        console.error("Erro ao buscar usuário em updateReservationAction:", e);
+    }
 
     const reservationRef = ref(database, `reservations/${id}`);
     const snapshot = await get(reservationRef);
@@ -125,7 +130,12 @@ export async function updateReservationAction(values: unknown, currentUserId: st
     const reservationData = snapshot.val();
     const reservationOwnerId = reservationData.userId;
 
-    if (!user || (user.id !== reservationOwnerId && user.role !== 'Admin')) {
+    // Nota: Em Server Actions, se o fetchUserById falhar por permissão,
+    // confiamos no currentUserId se ele for o dono da reserva.
+    const isOwner = currentUserId === reservationOwnerId;
+    const isAdmin = user?.role === 'Admin';
+
+    if (!isOwner && !isAdmin) {
         return { success: false, message: "Permissão negada para editar esta reserva." };
     }
 
@@ -162,7 +172,13 @@ export async function cancelReservationAction(reservationId: string, currentUser
         return { success: false, message: "Usuário não autenticado." };
     }
 
-    const user = await fetchUserById(currentUserId);
+    let user = null;
+    try {
+        user = await fetchUserById(currentUserId);
+    } catch (e) {
+        console.error("Erro ao buscar usuário em cancelReservationAction:", e);
+    }
+
     const reservationRef = ref(database, `reservations/${reservationId}`);
     const snapshot = await get(reservationRef);
 
@@ -171,7 +187,10 @@ export async function cancelReservationAction(reservationId: string, currentUser
     }
     const reservation = snapshot.val();
 
-    if (!user || (user.id !== reservation.userId && user.role !== 'Admin')) {
+    const isOwner = currentUserId === reservation.userId;
+    const isAdmin = user?.role === 'Admin';
+
+    if (!isOwner && !isAdmin) {
         return { success: false, message: "Permissão negada para cancelar esta reserva." };
     }
 

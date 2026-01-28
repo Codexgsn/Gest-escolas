@@ -21,16 +21,19 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    const authInstance = getAuth(app);
-    const dbInstance = getDatabase(app);
+    let unsubscribeUserListener: (() => void) | null = null;
 
-    const unsubscribe = onAuthStateChanged(authInstance, (firebaseUser: FirebaseUser | null) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+      // Cancelar listener anterior se existir
+      if (unsubscribeUserListener) {
+        unsubscribeUserListener();
+        unsubscribeUserListener = null;
+      }
+
       if (firebaseUser) {
-        const userRef = ref(dbInstance, 'users/' + firebaseUser.uid);
+        const userRef = ref(database, 'users/' + firebaseUser.uid);
 
-        // Use get once initially to handle the "not in DB" case without a permanent listener if possible,
-        // or just be very careful with onValue.
-        onValue(userRef, (snapshot) => {
+        unsubscribeUserListener = onValue(userRef, (snapshot) => {
           if (snapshot.exists()) {
             const userData = snapshot.val();
             setCurrentUser({
@@ -56,17 +59,13 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
                 avatar: '/avatars/default.png',
                 createdAt: new Date().toISOString(),
             };
-            set(userRef, newUser).then(() => {
-                // The onValue listener will trigger again with the new data
-            }).catch(err => {
-                console.error("Error creating user:", err);
+            set(userRef, newUser).catch(err => {
+                console.error("Error creating user in DB:", err);
                 setIsUserLoading(false);
             });
           }
         }, (error) => {
-            console.error("Error fetching user data:", error);
-            // If it's a permission denied on the user's own record, it's weird,
-            // but we should still stop loading.
+            console.error("Firebase Database onValue Error (users):", error);
             setIsUserLoading(false);
         });
       } else {
@@ -75,7 +74,10 @@ export const FirebaseProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeUserListener) unsubscribeUserListener();
+    };
   }, []);
 
   const value: FirebaseContextValue = {

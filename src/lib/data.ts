@@ -45,6 +45,7 @@ export async function fetchUserById(id: string): Promise<User | null> {
 export async function fetchResources(tagFilter?: string[]): Promise<Resource[]> {
   try {
     const resourcesRef = ref(database, 'resources');
+    console.log(`FETCH_RESOURCES: Auth UID: ${auth.currentUser?.uid || 'N/A'}`);
     const snapshot = await get(resourcesRef);
 
     if (!snapshot.exists()) {
@@ -78,6 +79,7 @@ export async function fetchResources(tagFilter?: string[]): Promise<Resource[]> 
 export async function fetchResourceById(id: string): Promise<Resource | null> {
   try {
     const resourceRef = ref(database, `resources/${id}`);
+    console.log(`FETCH_RESOURCE_BY_ID (${id}): Auth UID: ${auth.currentUser?.uid || 'N/A'}`);
     const snapshot = await get(resourceRef);
     if (!snapshot.exists()) {
       return null;
@@ -92,6 +94,7 @@ export async function fetchResourceById(id: string): Promise<Resource | null> {
 export async function fetchResourceTags(): Promise<string[]> {
   try {
     const resourcesRef = ref(database, 'resources');
+    console.log(`FETCH_RESOURCE_TAGS: Auth UID: ${auth.currentUser?.uid || 'N/A'}`);
     const snapshot = await get(resourcesRef);
 
     if (!snapshot.exists()) {
