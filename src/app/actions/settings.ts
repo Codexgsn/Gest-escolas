@@ -2,8 +2,6 @@
 'use client'
 
 import { z } from "zod"
-import { ref, get, set } from "firebase/database";
-import { database } from "@/firebase";
 
 const timeSlotSchema = z.object({
   startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato inválido (HH:MM)'),
@@ -49,39 +47,18 @@ const defaultSettings: SchoolSettings = {
 
 
 export async function getSettings(): Promise<SchoolSettings> {
-  try {
-    const snapshot = await get(ref(database, 'settings'));
-    if (snapshot.exists()) {
-        // Ensure data matches schema, especially for arrays which might be missing in older DB states
-        const dbData = snapshot.val();
-        return {
-            ...defaultSettings,
-            ...dbData,
-            operatingDays: dbData.operatingDays || defaultSettings.operatingDays,
-            classBlocks: dbData.classBlocks || defaultSettings.classBlocks,
-            breaks: dbData.breaks || defaultSettings.breaks,
-            resourceTags: dbData.resourceTags || defaultSettings.resourceTags,
-        };
-    }
-    // If no settings in DB, save and return default
-    await set(ref(database, 'settings'), defaultSettings);
-    return defaultSettings;
-  } catch (error) {
-    console.error("Error fetching settings, returning defaults:", error);
-    return defaultSettings;
-  }
+  console.log("Fetching settings...");
+  // Placeholder implementation - returns default settings
+  return Promise.resolve(defaultSettings);
 }
 
 export async function updateSettingsAction(values: SchoolSettings) {
+  console.log("Updating settings...", values);
   const validatedFields = settingsSchema.safeParse(values);
   if (!validatedFields.success) {
     return { success: false, message: 'Dados de configuração inválidos.' };
   }
 
-  try {
-    await set(ref(database, 'settings'), validatedFields.data);
-    return { success: true, message: "Configurações salvas com sucesso!" };
-  } catch (error) {
-    return { success: false, message: "Falha ao salvar as configurações." };
-  }
+  // Placeholder implementation
+  return Promise.resolve({ success: true, message: "Configurações salvas com sucesso!" });
 }

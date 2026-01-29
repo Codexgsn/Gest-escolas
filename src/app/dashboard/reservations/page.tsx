@@ -1,7 +1,6 @@
 
-'use client';
-
 import Link from "next/link";
+import { Suspense } from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,7 +11,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { ReservationsClientView } from "@/components/reservations/reservations-client-view";
 
-// This is the main page component, now a client component.
+// This is now a Server Component
 export default function ReservationsPage() {
     return (
         <>
@@ -32,8 +31,9 @@ export default function ReservationsPage() {
                 </Breadcrumb>
             </div>
             
-            {/* All dynamic logic is now encapsulated in this new client component */}
-            <ReservationsClientView />
+            <Suspense fallback={<div>Carregando reservas...</div>}>
+                <ReservationsClientView />
+            </Suspense>
         </>
     );
 }

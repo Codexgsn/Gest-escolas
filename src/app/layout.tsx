@@ -3,7 +3,6 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { FirebaseProvider } from '@/firebase/provider';
 import { ThemeProvider } from '@/components/theme-provider'; // Importa o ThemeProvider
 
 export const metadata: Metadata = {
@@ -36,9 +35,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
         >
-          <FirebaseProvider>
-            {children}
-          </FirebaseProvider>
+          {children}
           <Toaster />
           <Analytics />
           <SpeedInsights />

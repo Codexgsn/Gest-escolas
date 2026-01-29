@@ -31,8 +31,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Textarea } from "@/components/ui/textarea"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { ptBR } from 'date-fns/locale';
@@ -76,8 +74,6 @@ interface NewReservationFormProps {
 
 export function NewReservationForm({ resources, settings, initialResourceId }: NewReservationFormProps) {
   const router = useRouter();
-  const { toast } = useToast();
-  const { user: authUser, loading: authLoading } = useAuth();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -95,19 +91,14 @@ export function NewReservationForm({ resources, settings, initialResourceId }: N
   }, [initialResourceId, setValue]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!authUser) {
-        toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado para criar uma reserva." });
-        return;
-    }
-
-    const result = await createReservationAction(values, authUser.uid);
+    const result = await createReservationAction(values, ""); // Placeholder for userId
 
     if (result.success) {
-      toast({ title: "Sucesso", description: result.message });
+      console.log("Sucesso", result.message);
       router.push("/dashboard/reservations");
       router.refresh();
     } else {
-      toast({ variant: "destructive", title: "Erro", description: result.message });
+      console.error("Erro", result.message);
     }
   }
 
@@ -124,14 +115,6 @@ export function NewReservationForm({ resources, settings, initialResourceId }: N
     return false;
   };
   
-  if (authLoading) {
-      return <p>Carregando...</p>;
-  }
-  
-  if (!authUser) {
-      return <p>Por favor, faça login para continuar.</p>;
-  }
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -232,7 +215,7 @@ export function NewReservationForm({ resources, settings, initialResourceId }: N
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={authLoading}>Verificar Disponibilidade &amp; Reservar</Button>
+        <Button type="submit">Verificar Disponibilidade &amp; Reservar</Button>
       </form>
     </Form>
   );

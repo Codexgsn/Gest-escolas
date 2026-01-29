@@ -40,14 +40,11 @@ import {
 } from "@/components/ui/table";
 import type { Resource } from "@/lib/definitions";
 import React, { useState, useEffect } from "react";
-import { useAuth } from "@/firebase/provider";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { deleteResourceAction } from "@/app/actions/resources";
 import { Skeleton } from "@/components/ui/skeleton";
-import { database } from "@/firebase/client";
-import { ref, onValue } from "firebase/database";
+
 
 function ResourceRow({ resource, onDelete }: { resource: Resource, onDelete: (id: string) => void }) {
   return (
@@ -135,66 +132,36 @@ function ResourcesTableSkeleton() {
 }
 
 export default function ManageResourcesPage() {
-  const { currentUser, isUserLoading } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
   const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (isUserLoading) return; // Wait for user to be loaded
-
-    if (!currentUser || currentUser.role !== 'Admin') {
-        toast({
-            variant: "destructive",
-            title: "Acesso Negado",
-            description: "Você não tem permissão para acessar esta página.",
-        });
-        router.push('/dashboard');
-        return;
+    const fetchResources = async () => {
+        setIsLoading(true);
+        // const response = await fetch('/api/resources'); // Example API call
+        // const data = await response.json();
+        // setResources(data);
+        setResources([]); // Start with empty data
+        setIsLoading(false);
     }
-
-    const resourcesRef = ref(database, 'resources');
-    const unsubscribe = onValue(resourcesRef, (snapshot) => {
-        const data = snapshot.val();
-        const list = data ? Object.keys(data).map(key => ({ id: key, ...data[key] })) : [];
-        setResources(list);
-        setIsLoading(false);
-    }, (error) => {
-        console.error("Firebase Error:", error);
-        toast({ variant: "destructive", title: "Erro de Conexão", description: "Não foi possível buscar a lista de recursos." });
-        setIsLoading(false);
-    });
-
-    return () => unsubscribe();
+    fetchResources();
     
-  }, [currentUser, isUserLoading, router, toast]);
+  }, []);
 
   const handleDeleteResource = async (resourceId: string) => {
-    if (!currentUser) return;
-    
-    // Optimistic UI update: remove from state immediately
     setResources(prev => prev.filter(r => r.id !== resourceId));
 
-    const result = await deleteResourceAction(resourceId, currentUser.uid);
+    const result = await deleteResourceAction(resourceId, "");
 
     if (result.success) {
-        toast({
-            title: "Recurso Excluído",
-            description: result.message,
-        })
+        console.log("Recurso Excluído", result.message);
     } else {
-        toast({
-            title: "Erro ao Excluir",
-            description: result.message,
-            variant: 'destructive'
-        })
-        // Revert optimistic update if deletion fails
-        // (This would require fetching the item back, for now we rely on the listener to refresh)
+        console.error("Erro ao Excluir", result.message);
     }
   };
 
-  if (isLoading || isUserLoading) {
+  if (isLoading) {
     return (
         <div className="space-y-4">
              <div className="flex items-center justify-between mb-4">
@@ -230,7 +197,7 @@ export default function ManageResourcesPage() {
         </Breadcrumb>
         <div className="ml-auto flex items-center gap-2">
             <Button asChild size="sm" className="h-8 gap-1">
-              <Link href="/dashboard/settings/resources/new"> {/* Corrected Link */}
+              <Link href="/dashboard/settings/resources/new">
                   <PlusCircle className="h-3.5 w-3.5" />
                   <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                   Adicionar Recurso

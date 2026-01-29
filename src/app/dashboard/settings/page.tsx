@@ -26,8 +26,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
+// import { useToast } from '@/hooks/use-toast'; // Temporariamente removido
 import {
   getSettings,
   updateSettingsAction,
@@ -80,8 +79,7 @@ function minutesToTime(totalMinutes: number): string {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { toast } = useToast();
-  const { currentUser } = useAuth();
+  // const { toast } = useToast(); // Temporariamente removido
   const [isLoading, setIsLoading] = useState(true);
   const [newTag, setNewTag] = useState('');
 
@@ -182,66 +180,36 @@ export default function SettingsPage() {
     }
     
     replaceClassBlocks(newClassBlocks);
-     toast({
-        title: "Grade Gerada",
-        description: "Os blocos de aula foram calculados com base nas suas configurações.",
-    });
+     console.log("Grade Gerada"); // Temporariamente logando no console
   };
 
 
   useEffect(() => {
     async function fetchSettings() {
-      if (currentUser?.role !== 'Admin') {
-         toast({
-          variant: "destructive",
-          title: "Acesso Negado",
-          description: "Você não tem permissão para acessar esta página.",
-        });
-        router.push('/dashboard');
-        return;
-      }
       try {
         const currentSettings = await getSettings();
         if (currentSettings) {
           form.reset(currentSettings);
         }
       } catch (error) {
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'Não foi possível carregar as configurações.',
-        });
+        console.error('Erro ao carregar as configurações.');
       } finally {
         setIsLoading(false);
       }
     }
-
-    if (currentUser) {
-      fetchSettings();
-    }
-  }, [currentUser, router, toast, form]);
+    fetchSettings();
+  }, [form]);
 
   async function onSubmit(values: z.infer<typeof settingsSchema>) {
     const result = await updateSettingsAction(values);
 
     if (result.success) {
-      toast({
-        title: 'Sucesso',
-        description: result.message,
-      });
+      console.log('Sucesso:', result.message);
     } else {
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: result.message,
-      });
+      console.error('Erro:', result.message);
     }
   }
   
-  if (isLoading && currentUser?.role !== 'Admin') {
-    return null; 
-  }
-
   if (isLoading) {
     return (
        <Card className="max-w-4xl mx-auto">
@@ -618,5 +586,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    

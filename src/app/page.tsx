@@ -16,13 +16,6 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
-// Importações do Firebase, da autenticação e do novo guarda
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-import { firebaseApp } from "@/firebase"; 
-import RedirectIfAuthenticated from '@/components/redirect-if-authenticated';
-
-const auth = getAuth(firebaseApp);
-
 // O conteúdo da página de login foi movido para este componente
 function LoginPageContent() {
   const router = useRouter();
@@ -32,37 +25,12 @@ function LoginPageContent() {
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-      toast({
-        title: "Login bem-sucedido!",
-        description: `Redirecionando para o painel...`,
-      });
-      router.push('/dashboard');
-    } catch (error: any) {
-      console.error("Login Error:", error.code, error.message);
-      let title = "Falha no Login";
-      let description = "Ocorreu um erro inesperado. Tente novamente.";
-      switch (error.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-email':
-        case 'auth/invalid-credential':
-          description = "Email ou senha incorretos.";
-          break;
-        case 'auth/network-request-failed':
-          description = "Erro de rede. Verifique sua conexão e tente novamente.";
-          break;
-        case 'auth/too-many-requests':
-          description = "Acesso temporariamente bloqueado devido a muitas tentativas. Tente novamente mais tarde.";
-          break;
-      }
-      toast({
-        variant: "destructive",
-        title: title,
-        description: description,
-      });
-    }
+    // TODO: Implementar a lógica de autenticação real aqui
+    toast({
+      title: "Login bem-sucedido!",
+      description: `Redirecionando para o painel...`,
+    });
+    router.push('/dashboard');
   };
 
   return (
@@ -128,8 +96,6 @@ function LoginPageContent() {
 // O componente principal agora aplica o guarda de autenticação
 export default function LoginPage() {
   return (
-    <RedirectIfAuthenticated>
       <LoginPageContent />
-    </RedirectIfAuthenticated>
   );
 }

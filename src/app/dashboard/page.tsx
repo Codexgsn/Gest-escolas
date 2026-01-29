@@ -31,8 +31,11 @@ import { Line, LineChart, Pie, PieChart, Cell } from "recharts";
 import dynamic from "next/dynamic";
 import { Skeleton } from "@/components/ui/skeleton";
 import React, { useEffect, useState, useMemo } from 'react';
-import { database } from "@/firebase";
-import { ref, onValue } from "firebase/database";
+
+// Mock data to prevent crashes - a ser substituído pela API
+const users: User[] = [];
+const resources: Resource[] = [];
+const reservations: Reservation[] = [];
 
 const DynamicLineChart = dynamic(() => import('recharts').then(mod => mod.LineChart), {
   ssr: false,
@@ -129,73 +132,10 @@ function ResourceUsageChart({ data, config }: { data: any[], config: any }) {
 }
 
 export default function DashboardPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [userMap, setUserMap] = useState<Map<string, User>>(new Map());
-  const [resourceMap, setResourceMap] = useState<Map<string, Resource>>(new Map());
-
-  const isLoading = !users.length || !resources.length || !reservations.length;
-
-  useEffect(() => {
-    const usersRef = ref(database, 'users');
-    const resourcesRef = ref(database, 'resources');
-    const reservationsRef = ref(database, 'reservations');
-
-    const unsubscribeUsers = onValue(usersRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            const list: User[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            setUsers(list);
-            setUserMap(new Map(list.map(u => [u.id, u])));
-        }
-    });
-
-    const unsubscribeResources = onValue(resourcesRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            const list: Resource[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-            setResources(list);
-            setResourceMap(new Map(list.map(r => [r.id, r])));
-        }
-    });
-
-    const unsubscribeReservations = onValue(reservationsRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            const list: Reservation[] = Object.keys(data).map(key => ({
-                id: key,
-                ...data[key],
-                startTime: new Date(data[key].startTime),
-                endTime: new Date(data[key].endTime)
-            }));
-            setReservations(list);
-        }
-    });
-
-    return () => {
-        unsubscribeUsers();
-        unsubscribeResources();
-        unsubscribeReservations();
-    };
-  }, []);
-
+  const userMap = new Map(users.map(u => [u.id, u]));
+  const resourceMap = new Map(resources.map(r => [r.id, r]));
 
  const dashboardData = useMemo(() => {
-    if (isLoading) {
-        return {
-            activeReservations: 0,
-            upcomingReservations: 0,
-            totalUsers: 0,
-            totalResources: 0,
-            totalReservations: 0,
-            recentReservations: [],
-            resourceUsageData: [],
-            bookingTrendsData: [],
-            resourceTypeChartData: [],
-        };
-    }
-
     const now = new Date();
     const activeReservations = reservations.filter(
       (r) => r.status === "Confirmada" && new Date(r.endTime) > now
@@ -258,7 +198,7 @@ export default function DashboardPage() {
       bookingTrendsData,
       resourceTypeChartData,
     }
-  }, [isLoading, users, resources, reservations]);
+  }, []);
 
   
   const chartConfig = {
@@ -267,7 +207,6 @@ export default function DashboardPage() {
   };
 
   const pieChartConfig = useMemo(() => {
-    if (!resources || !resources.length) return {};
     const types = [...new Set(resources.map(r => r.type || "Desconhecido"))];
     const config: any = {};
     types.forEach((type, index) => {
@@ -277,7 +216,7 @@ export default function DashboardPage() {
         };
     });
     return config;
-  }, [resources]);
+  }, []);
 
 
   return (

@@ -41,9 +41,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useAuth } from '@/hooks/useAuth';
-import { fetchUsers, fetchUserById } from '@/lib/data';
-import { useToast } from '@/hooks/use-toast';
+import { fetchUsers } from '@/lib/data';
 import type { User } from '@/lib/definitions';
 
 function UserRow({
@@ -128,55 +126,34 @@ function UserRow({
 }
 
 export function UsersClientView() {
-    const { user: authUser, loading: authLoading } = useAuth();
     const [users, setUsers] = useState<User[]>([]);
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-    const { toast } = useToast();
 
     useEffect(() => {
         async function loadData() {
-            if (!authUser) {
-                if (!authLoading) setLoading(false);
-                return;
-            }
-
+            setLoading(true);
             try {
-                const [userDetails, allUsersData] = await Promise.all([
-                    fetchUserById(authUser.uid),
-                    fetchUsers()
-                ]);
-                
-                setCurrentUser(userDetails);
-                if (userDetails?.role === 'Admin') {
-                    setUsers(allUsersData);
-                } else {
-                    // Non-admins should probably not see this page,
-                    // but as a fallback, we show them only their own user data.
-                    setUsers(userDetails ? [userDetails] : []);
-                }
+                const allUsersData = await fetchUsers();
+                setUsers(allUsersData);
             } catch (error) {
                 console.error("Failed to load user data:", error);
-                toast({ variant: "destructive", title: "Erro", description: "Falha ao carregar dados dos usuários." });
             } finally {
                 setLoading(false);
             }
         }
 
         loadData();
-    }, [authUser, authLoading, toast]);
+    }, []);
 
     const handleDeleteUser = async (userId: string) => {
-        // Placeholder for server action
         console.log("Deleting user:", userId);
-        toast({ title: "Funcionalidade não implementada", description: "A exclusão de usuário será implementada em breve." });
+        alert("Funcionalidade de exclusão de usuário ainda não implementada.");
     };
 
     const handleDeleteMultiple = async () => {
-        // Placeholder for server action
         console.log("Deleting users:", selectedUserIds);
-        toast({ title: "Funcionalidade não implementada", description: "A exclusão de múltiplos usuários será implementada em breve." });
+        alert("Funcionalidade de exclusão de múltiplos usuários ainda não implementada.");
         setSelectedUserIds([]);
     };
 
@@ -188,12 +165,8 @@ export function UsersClientView() {
         setSelectedUserIds(selected ? users.map((u) => u.id) : []);
     };
 
-    if (loading || authLoading) {
+    if (loading) {
         return <div>Carregando usuários...</div>;
-    }
-
-    if (!currentUser || currentUser.role !== 'Admin') {
-        return <p>Você não tem permissão para ver esta página.</p>;
     }
 
     const numSelected = selectedUserIds.length;

@@ -6,12 +6,10 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useRouter, useParams } from "next/navigation"
 import React, { useEffect, useState } from "react"
-import { useAuth } from "@/hooks/useAuth"
-import { useToast } from "@/hooks/use-toast"
 import { updateResourceAction } from "@/app/actions/resources"
 import { getResourceById as getResourceByIdAction } from "@/app/actions/data"
 import { getSettings } from "@/app/actions/settings"
-import type { Resource } from "@/lib/data"
+import type { Resource } from "@/lib/definitions";
 
 import { Button } from "@/components/ui/button"
 import {
@@ -49,23 +47,11 @@ const formSchema = z.object({
 export default function EditResourcePage() {
   const router = useRouter()
   const params = useParams()
-  const { toast } = useToast()
-  const { currentUser } = useAuth()
   const [resource, setResource] = useState<Resource | null>(null)
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const resourceId = Array.isArray(params.id) ? params.id[0] : params.id;
-
-  useEffect(() => {
-    if (currentUser && currentUser.role !== 'Admin') {
-      toast({
-        variant: "destructive",
-        title: "Acesso Negado",
-        description: "Você não tem permissão para acessar esta página.",
-      })
-      router.push('/dashboard')
-    }
-  }, [currentUser, router, toast])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -82,7 +68,7 @@ export default function EditResourcePage() {
 
   useEffect(() => {
     async function loadResource() {
-        if (resourceId) {
+        if (resourceId) { 
             try {
                 const [foundResource, settings] = await Promise.all([
                     getResourceByIdAction(resourceId as string),
@@ -95,52 +81,38 @@ export default function EditResourcePage() {
                     setResource(foundResource);
                     form.reset({
                         ...foundResource,
-                        equipment: foundResource.equipment.join(", "),
+                        equipment: Array.isArray(foundResource.equipment) ? foundResource.equipment.join(", ") : "",
                         tags: foundResource.tags || [],
                     });
                 } else {
-                    toast({
-                        variant: "destructive",
-                        title: "Erro",
-                        description: "Recurso não encontrado.",
-                    });
+                    console.error("Recurso não encontrado.");
                     router.push("/dashboard/settings/resources");
                 }
             } catch (error) {
-                 toast({
-                    variant: "destructive",
-                    title: "Erro de Carregamento",
-                    description: "Não foi possível buscar os dados do recurso.",
-                });
+                 console.error("Não foi possível buscar os dados do recurso.");
+            } finally {
+                setIsLoading(false);
             }
         }
     }
-    if (currentUser?.role === 'Admin') {
-      loadResource();
-    }
-  }, [resourceId, router, toast, form, currentUser]);
+    loadResource();
+  }, [resourceId, router, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!currentUser || !resource) return;
+    if (!resource) return;
     
-    const result = await updateResourceAction({ id: resource.id, ...values}, currentUser.id)
+    // The user id is not available anymore, so we pass an empty string
+    const result = await updateResourceAction({ id: resource.id, ...values}, "")
 
     if (result.success) {
-      toast({
-        title: "Sucesso",
-        description: "Recurso atualizado com sucesso!",
-      })
+      console.log("Recurso atualizado com sucesso!");
       router.push("/dashboard/settings/resources")
     } else {
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: result.message,
-      })
+      console.error("Erro ao atualizar o recurso", result.message);
     }
   }
 
-  if (!resource) {
+  if (isLoading) {
      return (
       <Card className="max-w-4xl mx-auto">
         <CardHeader>

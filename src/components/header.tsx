@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpenCheck, LayoutDashboard, CalendarDays, Building, Users, Settings, Menu, Search } from 'lucide-react';
+import { BookOpenCheck, Menu, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -25,29 +25,21 @@ import { Input } from '@/components/ui/input';
 import { ThemeToggle } from './theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { SidebarTrigger } from './ui/sidebar';
-import { useAuth, useFirebase } from '@/firebase/provider';
-import { signOut } from 'firebase/auth';
 import { usePathname } from 'next/navigation';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
+// Basic menu items without role filtering
 const allMenuItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Painel", adminOnly: false },
-  { href: "/dashboard/reservations", icon: CalendarDays, label: "Reservas", adminOnly: false },
-  { href: "/dashboard/resources", icon: Building, label: "Recursos", adminOnly: false },
-  { href: "/dashboard/users", icon: Users, label: "Usuários", adminOnly: true },
-  { href: "/dashboard/settings", icon: Settings, label: "Configurações", adminOnly: true },
+  { href: "/dashboard", label: "Painel" },
+  { href: "/dashboard/reservations", label: "Reservas" },
+  { href: "/dashboard/resources", label: "Recursos" },
+  { href: "/dashboard/users", label: "Usuários" },
+  { href: "/dashboard/settings", label: "Configurações" },
 ];
 
 function MobileNav() {
     const pathname = usePathname();
-    const { currentUser, isUserLoading } = useAuth();
     const [open, setOpen] = useState(false);
-
-    const menuItems = allMenuItems.filter(item => {
-        if (isUserLoading) return false;
-        if (item.adminOnly) return currentUser?.role === 'Admin';
-        return true;
-    });
 
     return (
         <Sheet open={open} onOpenChange={setOpen}>
@@ -72,7 +64,7 @@ function MobileNav() {
                          <span className="text-lg font-semibold">Gestão Escolar</span>
                     </div>
                     <nav className="flex flex-col gap-2 p-2">
-                        {menuItems.map((item) => (
+                        {allMenuItems.map((item) => (
                            <Button
                                 key={item.href}
                                 asChild
@@ -81,7 +73,6 @@ function MobileNav() {
                                 onClick={() => setOpen(false)}
                             >
                                 <Link href={item.href}>
-                                    <item.icon className="mr-2 h-5 w-5" />
                                     {item.label}
                                 </Link>
                            </Button>
@@ -96,14 +87,6 @@ function MobileNav() {
 export default function Header() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
-  const { currentUser, isUserLoading } = useAuth(); // Use new hook for user data
-  const { auth } = useFirebase(); // Use hook from provider to get auth instance
-
-  const handleLogout = async () => {
-    if (!auth) return;
-    await signOut(auth);
-    router.push('/');
-  };
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -145,19 +128,15 @@ export default function Header() {
                     className="overflow-hidden rounded-full flex-shrink-0"
                   >
                     <Avatar>
-                      {/* Assuming you might add an avatarUrl to your user profile */}
-                      {/* <AvatarImage src={currentUser?.avatarUrl} alt="Avatar" /> */}
-                      {!isUserLoading && (
                         <AvatarFallback>
-                          {currentUser?.name?.charAt(0) ?? 'U'}
+                          U
                         </AvatarFallback>
-                      )}
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>
-                    {!isUserLoading ? currentUser?.name ?? 'Minha Conta' : 'Carregando...'}
+                    Minha Conta
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
@@ -165,7 +144,7 @@ export default function Header() {
                   </DropdownMenuItem>
                   <DropdownMenuItem>Suporte</DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>Sair</DropdownMenuItem>
+                  {/*<DropdownMenuItem onClick={handleLogout}>Sair</DropdownMenuItem>*/}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

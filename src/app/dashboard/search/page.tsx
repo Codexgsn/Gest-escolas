@@ -13,12 +13,10 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import type { Resource } from '@/lib/data';
+import type { Resource } from '@/lib/definitions'; // Changed from @/lib/data
 import { Users, MapPin, Wrench, Package } from 'lucide-react';
 import { Suspense, useState, useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { database } from '@/firebase';
-import { ref, onValue } from 'firebase/database';
 
 
 function ResourceCard({ resource }: { resource: Resource }) {
@@ -104,24 +102,25 @@ function SearchResultsSkeleton() {
 function SearchResultsInternal() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
-  const [allResources, setAllResources] = useState<Resource[]>([]);
+  const [allResources, setAllResources] = useState<Resource[]>([]); // This will be fetched from our API now
   const [filteredResources, setFilteredResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     setIsLoading(true);
-    const resourcesRef = ref(database, 'resources');
-    const unsubscribe = onValue(resourcesRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        const list: Resource[] = Object.keys(data).map(key => ({ id: key, ...data[key] }));
-        setAllResources(list);
-      } else {
-        setAllResources([]);
-      }
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
+    // Placeholder: Fetch resources from your new API
+    // For now, we'll just use an empty array
+    const fetchResources = async () => {
+        // In the future, you'll fetch from your API route that connects to Neon
+        // const response = await fetch('/api/resources');
+        // const data = await response.json();
+        // setAllResources(data);
+        setAllResources([]); // Initially empty
+        setIsLoading(false);
+    };
+
+    fetchResources();
+
   }, []);
 
   useEffect(() => {
@@ -131,6 +130,7 @@ function SearchResultsInternal() {
     }
 
     const searchTerm = query.toLowerCase();
+    // This filtering logic can be moved to the backend in the future for performance
     const results = allResources.filter((resource) => 
         resource.name.toLowerCase().includes(searchTerm) ||
         resource.type.toLowerCase().includes(searchTerm) ||

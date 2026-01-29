@@ -20,10 +20,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarFooter,
-} from "@/components/ui/sidebar"; // useSidebar removido daqui
-import { useLayoutStore } from "@/lib/store"; // Importação direta do store
+} from "@/components/ui/sidebar"; 
+import { useLayoutStore } from "@/lib/store"; 
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
 
 const allMenuItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Painel", adminOnly: false },
@@ -35,20 +34,10 @@ const allMenuItems = [
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  // Correção: Usando o store diretamente para obter o estado do sidebar
   const state = useLayoutStore((s) => s.getState());
-  // Correção: Usando os nomes corretos (currentUser, isUserLoading) retornados pelo hook useAuth
-  const { currentUser, isUserLoading } = useAuth();
 
-  const menuItems = allMenuItems.filter(item => {
-    if (isUserLoading) {
-      return false;
-    }
-    if (item.adminOnly) {
-      return currentUser?.role === 'Admin';
-    }
-    return true;
-  });
+  // TODO: Re-implement role-based menu filtering with the new auth system
+  const menuItems = allMenuItems;
 
   return (
     <Sidebar className="border-r">
